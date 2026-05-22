@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bagus Bakery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navigasi desktop">
+      <a class="brand-mark" href="#dashboard" aria-label="Bagus Bakery">
+        <img src="/logo.png" alt="Bagus Bakery" class="logo-img sidebar-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+        <span class="logo-fallback" style="display:none;font-size:28px">🍪</span>
+      </a>
+      <nav class="sidebar-nav" id="sidebar-nav"></nav>
+      <div class="app-version">v1.0.0</div>
+    </aside>
+
+    <main class="main-content">
+      <header class="mobile-header">
+        <a class="brand-mark" href="#dashboard" aria-label="Bagus Bakery">
+          <img src="/logo.png" alt="Bagus Bakery" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+          <span class="logo-fallback" style="display:none;font-size:28px">🍪</span>
+        </a>
+      </header>
+      <section class="page-inner" id="app" aria-live="polite"></section>
+    </main>
+
+    <nav class="bottom-nav" id="bottom-nav" aria-label="Navigasi utama"></nav>
+  </div>
+
+  <div class="modal-backdrop" id="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 id="modal-title"></h2>
+        <button class="icon-button" id="modal-close" type="button" aria-label="Tutup">x</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toast-wrap" aria-live="assertive"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
