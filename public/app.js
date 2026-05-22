@@ -455,7 +455,6 @@ function renderDebts() {
       });
     });
     app.querySelectorAll('[data-pay-id]').forEach((button) => button.addEventListener('click', markPaid));
-    app.querySelectorAll('[data-remind-id]').forEach((button) => button.addEventListener('click', remindDebt));
   }
 }
 
@@ -472,7 +471,6 @@ function debtItem(sale) {
       </div>
       <div class="button-row">
         <button class="btn success" type="button" data-pay-id="${sale.id}">Tandai Lunas</button>
-        <button class="btn secondary" type="button" data-remind-id="${sale.id}">Ingatkan</button>
       </div>
     </article>
   `;
@@ -488,13 +486,6 @@ async function markPaid(event) {
   } catch (error) {
     showToast(error.message, 'error');
   }
-}
-
-function remindDebt(event) {
-  const sale = state.sales.find((item) => String(item.id) === event.currentTarget.dataset.remindId);
-  if (!sale) return;
-  const message = `Halo ${sale.buyer_name}, mohon konfirmasi pembayaran pesanan kue Bagus Bakery sebesar ${formatCurrency(sale.total_amount)} ya. Terima kasih!`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
 }
 
 function renderCalculator() {

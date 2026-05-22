@@ -3,6 +3,6 @@ module.exports = {
     name: 'bagus-bakery',
     script: 'server.js',
     watch: false,
-    env: { NODE_ENV: 'production', PORT: 3000 }
+    env: { NODE_ENV: 'production', PORT: 8080 }
   }]
 };

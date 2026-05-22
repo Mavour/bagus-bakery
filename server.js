@@ -9,7 +9,7 @@ const reportsRouter = require('./routes/reports');
 const settingsRouter = require('./routes/settings');
 
 const app = express();
-const port = Number(process.env.PORT || 3000);
+const port = Number(process.env.PORT || 8080);
 
 initDatabase();
 
