@@ -5,6 +5,7 @@ const { initDatabase } = require('./database/db');
 const productsRouter = require('./routes/products');
 const salesRouter = require('./routes/sales');
 const calculationsRouter = require('./routes/calculations');
+const expensesRouter = require('./routes/expenses');
 const reportsRouter = require('./routes/reports');
 const settingsRouter = require('./routes/settings');
 
@@ -19,11 +20,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api/products', productsRouter);
 app.use('/api/sales', salesRouter);
 app.use('/api/calculations', calculationsRouter);
+app.use('/api/expenses', expensesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/settings', settingsRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, app: 'bagus-bakery' });
+});
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  return res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.use((_req, res) => {

@@ -29,6 +29,29 @@ function getMonthRows(key) {
   return db.prepare("SELECT * FROM sales WHERE strftime('%Y-%m', created_at) = ? ORDER BY datetime(created_at) DESC").all(key);
 }
 
+function getMonthExpenses(key) {
+  return db.prepare("SELECT * FROM expenses WHERE strftime('%Y-%m', purchased_at) = ? ORDER BY datetime(purchased_at) DESC, id DESC").all(key);
+}
+
+function aggregateExpenses(expenses) {
+  const categoryMap = new Map();
+  let totalExpenses = 0;
+
+  for (const expense of expenses) {
+    totalExpenses += expense.amount;
+    const current = categoryMap.get(expense.category) || { category: expense.category, amount: 0, count: 0 };
+    current.amount += expense.amount;
+    current.count += 1;
+    categoryMap.set(expense.category, current);
+  }
+
+  return {
+    total_expenses: totalExpenses,
+    expense_count: expenses.length,
+    expenses_by_category: Array.from(categoryMap.values()).sort((a, b) => b.amount - a.amount)
+  };
+}
+
 function aggregateRows(rows, daysInMonth, key) {
   const dailyMap = new Map();
   for (let day = 1; day <= daysInMonth; day += 1) {
@@ -133,19 +156,31 @@ router.get('/monthly', (req, res) => {
 
   const key = monthKey(year, month);
   const rows = getMonthRows(key);
+  const expenses = getMonthExpenses(key);
   const daysInMonth = new Date(year, month, 0).getDate();
   const aggregate = aggregateRows(rows, daysInMonth, key);
+  const expenseAggregate = aggregateExpenses(expenses);
 
   const previous = addMonth(year, month, -1);
   const previousRows = getMonthRows(monthKey(previous.year, previous.month));
+  const previousExpenses = getMonthExpenses(monthKey(previous.year, previous.month));
   const previousAggregate = aggregateRows(previousRows, new Date(previous.year, previous.month, 0).getDate(), monthKey(previous.year, previous.month));
+  const previousExpenseAggregate = aggregateExpenses(previousExpenses);
 
   const revenueChange = aggregate.total_revenue - previousAggregate.total_revenue;
   const transactionChange = aggregate.total_transactions - previousAggregate.total_transactions;
+  const actualNetProfit = aggregate.total_revenue - expenseAggregate.total_expenses;
 
   res.json({
     period: `${monthNames[month - 1]} ${year}`,
     ...aggregate,
+    ...expenseAggregate,
+    actual_profit: {
+      total_revenue_paid: aggregate.total_revenue,
+      total_expenses: expenseAggregate.total_expenses,
+      net_profit: actualNetProfit,
+      margin_percent: aggregate.total_revenue > 0 ? Number(((actualNetProfit / aggregate.total_revenue) * 100).toFixed(1)) : 0
+    },
     estimated_profit: estimateProfit(rows, aggregate.total_revenue),
     vs_last_month: {
       last_month_revenue: previousAggregate.total_revenue,
@@ -154,7 +189,9 @@ router.get('/monthly', (req, res) => {
         ? Number(((revenueChange / previousAggregate.total_revenue) * 100).toFixed(1))
         : aggregate.total_revenue > 0 ? 100 : 0,
       last_month_transactions: previousAggregate.total_transactions,
-      transaction_change: transactionChange
+      transaction_change: transactionChange,
+      last_month_expenses: previousExpenseAggregate.total_expenses,
+      expense_change: expenseAggregate.total_expenses - previousExpenseAggregate.total_expenses
     }
   });
 });

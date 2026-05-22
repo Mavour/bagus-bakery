@@ -7,16 +7,18 @@ const modalBody = document.getElementById('modal-body');
 const modalClose = document.getElementById('modal-close');
 const toastWrap = document.getElementById('toast-wrap');
 
-const defaultNavLabels = ['Dashboard', 'Tagihan', 'Kalkulator', 'Laporan'];
+const defaultNavLabels = ['Dashboard', 'Tagihan', 'Belanja', 'Kalkulator', 'Laporan'];
 const icons = {
   home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.5Z"/></svg>',
   bill: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2V3Zm3 5h7M10 12h7M10 16h4"/></svg>',
+  expense: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h15l-2 11H7L5 4H2M9 11h8M10 15h6M9 21a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1ZM18 21a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1Z"/></svg>',
   calc: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm3 4h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>',
   report: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V5M5 19h14M9 16v-5M13 16V8M17 16v-8"/></svg>'
 };
 const navItems = [
   { hash: '#dashboard', icon: icons.home },
   { hash: '#tagihan', icon: icons.bill },
+  { hash: '#belanja', icon: icons.expense },
   { hash: '#kalkulator', icon: icons.calc },
   { hash: '#laporan', icon: icons.report }
 ];
@@ -24,6 +26,7 @@ const navItems = [
 const state = {
   products: [],
   sales: [],
+  expenses: [],
   calculations: [],
   settings: {},
   navLabels: [...defaultNavLabels],
@@ -162,14 +165,16 @@ function createChart(id, canvasId, config) {
 }
 
 async function refreshCommon() {
-  const [products, sales, calculations, settings] = await Promise.all([
+  const [products, sales, expenses, calculations, settings] = await Promise.all([
     api('/api/products'),
     api('/api/sales?limit=500'),
+    api('/api/expenses?limit=500'),
     api('/api/calculations'),
     api('/api/settings')
   ]);
   state.products = products;
   state.sales = sales;
+  state.expenses = expenses;
   state.calculations = calculations;
   state.settings = settings;
   try {
@@ -185,9 +190,14 @@ function dashboardStats() {
   const thisMonth = monthKey();
   const todaysSales = state.sales.filter((sale) => String(sale.created_at).startsWith(today));
   const monthSales = state.sales.filter((sale) => String(sale.created_at).startsWith(thisMonth));
+  const monthExpenses = state.expenses.filter((expense) => String(expense.purchased_at).startsWith(thisMonth));
+  const monthExpensesTotal = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const monthRevenue = monthSales.filter((sale) => sale.status === 'paid').reduce((sum, sale) => sum + sale.total_amount, 0);
   return {
     todayRevenue: todaysSales.filter((sale) => sale.status === 'paid').reduce((sum, sale) => sum + sale.total_amount, 0),
-    monthRevenue: monthSales.filter((sale) => sale.status === 'paid').reduce((sum, sale) => sum + sale.total_amount, 0),
+    monthRevenue,
+    monthExpensesTotal,
+    actualProfit: monthRevenue - monthExpensesTotal,
     todayTransactions: todaysSales.length,
     unpaidTotal: state.sales.filter((sale) => sale.status === 'unpaid').reduce((sum, sale) => sum + sale.total_amount, 0)
   };
@@ -218,6 +228,8 @@ function renderDashboard() {
     <div class="grid stats-grid">
       ${statCard('Penjualan hari ini', formatCurrency(stats.todayRevenue))}
       ${statCard('Penjualan bulan ini', formatCurrency(stats.monthRevenue))}
+      ${statCard('Belanja bulan ini', formatCurrency(stats.monthExpensesTotal), stats.monthExpensesTotal > 0)}
+      ${statCard('Laba aktual', formatCurrency(stats.actualProfit), stats.actualProfit < 0)}
       ${statCard('Transaksi hari ini', `${stats.todayTransactions}`)}
       ${statCard('Bon belum dibayar', formatCurrency(stats.unpaidTotal), stats.unpaidTotal > 0)}
     </div>
@@ -470,7 +482,7 @@ function debtItem(sale) {
         <div>
           <p class="item-title">${escapeHtml(sale.buyer_name)}</p>
           <p class="item-meta">${itemSummary(sale.items)}</p>
-          <p class="item-meta">${formatDate(sale.created_at)} · ${daysBetween(sale.created_at)} hari tertunggak</p>
+          <p class="item-meta">${formatDate(sale.created_at)} - ${daysBetween(sale.created_at)} hari tertunggak</p>
         </div>
         <strong>${formatCurrency(sale.total_amount)}</strong>
       </div>
@@ -479,6 +491,168 @@ function debtItem(sale) {
       </div>
     </article>
   `;
+}
+
+function renderExpenses() {
+  const today = localDateKey();
+  const thisMonth = monthKey();
+  const todaysExpenses = state.expenses.filter((expense) => String(expense.purchased_at).startsWith(today));
+  const monthExpenses = state.expenses.filter((expense) => String(expense.purchased_at).startsWith(thisMonth));
+  const monthTotal = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const todayTotal = todaysExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const categoryTotals = monthExpenses.reduce((groups, expense) => {
+    groups[expense.category] = (groups[expense.category] || 0) + expense.amount;
+    return groups;
+  }, {});
+
+  app.innerHTML = `
+    <h1 class="page-title">Belanja Bahan</h1>
+    <p class="page-subtitle">Catat pembelian bahan, kemasan, dan biaya operasional produksi.</p>
+
+    <div class="grid stats-grid">
+      ${statCard('Belanja hari ini', formatCurrency(todayTotal), todayTotal > 0)}
+      ${statCard('Belanja bulan ini', formatCurrency(monthTotal), monthTotal > 0)}
+      ${statCard('Jumlah catatan', `${monthExpenses.length}`)}
+      ${statCard('Kategori aktif', `${Object.keys(categoryTotals).length}`)}
+    </div>
+
+    <div class="section">
+      <button class="btn" type="button" data-action="new-expense">+ Catat Belanja</button>
+    </div>
+
+    <section class="section card panel">
+      <div class="section-header"><h2>Breakdown Bulan Ini</h2></div>
+      ${Object.keys(categoryTotals).length ? `
+        <div class="summary-box">
+          ${Object.entries(categoryTotals).map(([category, amount]) => `
+            <div class="summary-line"><span>${escapeHtml(category)}</span><strong>${formatCurrency(amount)}</strong></div>
+          `).join('')}
+        </div>
+      ` : '<p class="item-meta">Belum ada belanja bulan ini.</p>'}
+    </section>
+
+    <section class="section">
+      <div class="section-header"><h2>Riwayat Belanja</h2></div>
+      <div class="list">
+        ${state.expenses.length ? state.expenses.map(expenseItem).join('') : emptyState('Belum ada catatan belanja.')}
+      </div>
+    </section>
+  `;
+
+  app.querySelector('[data-action="new-expense"]').addEventListener('click', () => showExpenseModal());
+  app.querySelectorAll('[data-edit-expense]').forEach((button) => button.addEventListener('click', () => {
+    showExpenseModal(state.expenses.find((expense) => String(expense.id) === button.dataset.editExpense));
+  }));
+  app.querySelectorAll('[data-delete-expense]').forEach((button) => button.addEventListener('click', deleteExpense));
+}
+
+function expenseItem(expense) {
+  return `
+    <article class="list-item">
+      <div class="list-row">
+        <div>
+          <p class="item-title">${escapeHtml(expense.name)}</p>
+          <p class="item-meta">${escapeHtml(expense.category)}${expense.quantity ? ` - ${escapeHtml(expense.quantity)}` : ''}</p>
+          <p class="item-meta">${formatDate(expense.purchased_at)}${expense.shop_name ? ` - ${escapeHtml(expense.shop_name)}` : ''}</p>
+        </div>
+        <strong>${formatCurrency(expense.amount)}</strong>
+      </div>
+      ${expense.notes ? `<p class="item-meta">${escapeHtml(expense.notes)}</p>` : ''}
+      <div class="button-row">
+        <button class="btn secondary" type="button" data-edit-expense="${expense.id}">Edit</button>
+        <button class="btn danger" type="button" data-delete-expense="${expense.id}">Hapus</button>
+      </div>
+    </article>
+  `;
+}
+
+function expenseCategoryOptions(selected = 'Bahan') {
+  return ['Bahan', 'Kemasan', 'Operasional', 'Lainnya'].map((category) => `
+    <option value="${category}" ${category === selected ? 'selected' : ''}>${category}</option>
+  `).join('');
+}
+
+function toDateInputValue(value) {
+  if (!value) return localDateKey();
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return localDateKey();
+  return localDateKey(date);
+}
+
+function showExpenseModal(expense) {
+  const editing = Boolean(expense);
+  openModal(editing ? 'Edit Belanja' : 'Catat Belanja', `
+    <form class="form-grid" id="expense-form">
+      <div class="field">
+        <label for="expense-date">Tanggal belanja</label>
+        <input id="expense-date" type="date" required value="${toDateInputValue(expense?.purchased_at)}">
+      </div>
+      <div class="field">
+        <label for="expense-name">Nama bahan / biaya</label>
+        <input id="expense-name" required value="${escapeHtml(expense?.name || '')}" placeholder="Butter, keju, dus kemasan">
+      </div>
+      <div class="grid two-col">
+        <div class="field">
+          <label for="expense-category">Kategori</label>
+          <select id="expense-category">${expenseCategoryOptions(expense?.category || 'Bahan')}</select>
+        </div>
+        <div class="field">
+          <label for="expense-quantity">Jumlah / satuan</label>
+          <input id="expense-quantity" value="${escapeHtml(expense?.quantity || '')}" placeholder="1 kg, 2 dus">
+        </div>
+      </div>
+      <div class="grid two-col">
+        <div class="field">
+          <label for="expense-amount">Nominal</label>
+          <input id="expense-amount" type="number" min="0" required value="${expense?.amount || 0}">
+        </div>
+        <div class="field">
+          <label for="expense-shop">Tempat beli</label>
+          <input id="expense-shop" value="${escapeHtml(expense?.shop_name || '')}" placeholder="Toko bahan kue">
+        </div>
+      </div>
+      <div class="field">
+        <label for="expense-notes">Catatan</label>
+        <textarea id="expense-notes" rows="3">${escapeHtml(expense?.notes || '')}</textarea>
+      </div>
+      <button class="btn" type="submit">Simpan</button>
+    </form>
+  `);
+
+  document.getElementById('expense-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      await api(editing ? `/api/expenses/${expense.id}` : '/api/expenses', {
+        method: editing ? 'PUT' : 'POST',
+        body: JSON.stringify({
+          purchased_at: document.getElementById('expense-date').value,
+          name: document.getElementById('expense-name').value,
+          category: document.getElementById('expense-category').value,
+          quantity: document.getElementById('expense-quantity').value,
+          amount: Number(document.getElementById('expense-amount').value),
+          shop_name: document.getElementById('expense-shop').value,
+          notes: document.getElementById('expense-notes').value
+        })
+      });
+      closeModal();
+      showToast('Belanja tersimpan');
+      await route();
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
+}
+
+async function deleteExpense(event) {
+  const id = event.currentTarget.dataset.deleteExpense;
+  if (!window.confirm('Hapus catatan belanja ini?')) return;
+  try {
+    await api(`/api/expenses/${id}`, { method: 'DELETE' });
+    showToast('Catatan belanja dihapus');
+    await route();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 async function markPaid(event) {
@@ -579,7 +753,7 @@ function calcItem(calc) {
       <div class="list-row">
         <div>
           <p class="item-title">${escapeHtml(calc.product_name)}</p>
-          <p class="item-meta">${formatDate(calc.created_at)} · Margin ${calc.margin_percent}%</p>
+          <p class="item-meta">${formatDate(calc.created_at)} - Margin ${calc.margin_percent}%</p>
         </div>
         <strong>${formatCurrency(calc.profit_per_box)}/kotak</strong>
       </div>
@@ -767,6 +941,8 @@ async function renderReports() {
 
     <div class="grid stats-grid">
       ${statCard('Total pemasukan', formatCurrency(report.total_revenue))}
+      ${statCard('Total belanja', formatCurrency(report.total_expenses), report.total_expenses > 0)}
+      ${statCard('Laba aktual', formatCurrency(report.actual_profit.net_profit), report.actual_profit.net_profit < 0)}
       ${statCard('Total transaksi', `${report.total_transactions}`)}
       ${statCard('Masih piutang', formatCurrency(report.total_unpaid), report.total_unpaid > 0)}
       ${statCard('Kotak terjual', `${report.total_boxes_sold}`)}
@@ -796,6 +972,34 @@ async function renderReports() {
             `).join('') : '<tr><td colspan="4">Belum ada transaksi bulan ini.</td></tr>'}
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header"><h2>Breakdown Belanja</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Kategori</th><th>Catatan</th><th>Total</th></tr></thead>
+          <tbody>
+            ${report.expenses_by_category.length ? report.expenses_by_category.map((item) => `
+              <tr>
+                <td>${escapeHtml(item.category)}</td>
+                <td>${item.count}</td>
+                <td>${formatCurrency(item.amount)}</td>
+              </tr>
+            `).join('') : '<tr><td colspan="3">Belum ada belanja bulan ini.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section card panel">
+      <div class="section-header"><h2>Laba Aktual dari Belanja</h2></div>
+      <div class="summary-box">
+        <div class="summary-line"><span>Total pemasukan lunas</span><strong>${formatCurrency(report.actual_profit.total_revenue_paid)}</strong></div>
+        <div class="summary-line"><span>Total belanja tercatat</span><strong>${formatCurrency(report.actual_profit.total_expenses)}</strong></div>
+        <div class="summary-line"><span>Laba aktual</span><strong>${formatCurrency(report.actual_profit.net_profit)}</strong></div>
+        <div class="summary-line"><span>Margin aktual</span><strong>${report.actual_profit.margin_percent}%</strong></div>
       </div>
     </section>
 
@@ -861,6 +1065,8 @@ function exportReport(report) {
     'Bagus Bakery',
     `Laporan: ${report.period}`,
     `Total Pemasukan: ${formatCurrency(report.total_revenue)}`,
+    `Total Belanja: ${formatCurrency(report.total_expenses)}`,
+    `Laba Aktual: ${formatCurrency(report.actual_profit.net_profit)}`,
     `Total Transaksi: ${report.total_transactions}`,
     `Piutang: ${formatCurrency(report.total_unpaid)}`,
     '',
@@ -909,6 +1115,7 @@ async function route() {
     const hash = window.location.hash || '#dashboard';
     if (!window.location.hash) window.location.hash = hash;
     if (hash === '#tagihan') renderDebts();
+    else if (hash === '#belanja') renderExpenses();
     else if (hash === '#kalkulator') renderCalculator();
     else if (hash === '#laporan') await renderReports();
     else if (hash === '#pengaturan') {
