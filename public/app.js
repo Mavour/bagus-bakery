@@ -8,12 +8,19 @@ const modalClose = document.getElementById('modal-close');
 const toastWrap = document.getElementById('toast-wrap');
 
 const defaultNavLabels = ['Dashboard', 'Tagihan', 'Kalkulator', 'Laporan', 'Setelan'];
+const icons = {
+  home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.5Z"/></svg>',
+  bill: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2V3Zm3 5h7M10 12h7M10 16h4"/></svg>',
+  calc: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm3 4h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>',
+  report: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V5M5 19h14M9 16v-5M13 16V8M17 16v-8"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm8 4a8 8 0 0 0-.2-1.8l2-1.4-2-3.5-2.4 1a8 8 0 0 0-3-1.7L12 2H8l-.4 2.6a8 8 0 0 0-3 1.7l-2.4-1-2 3.5 2 1.4A8 8 0 0 0 2 12c0 .6.1 1.2.2 1.8l-2 1.4 2 3.5 2.4-1a8 8 0 0 0 3 1.7L8 22h4l.4-2.6a8 8 0 0 0 3-1.7l2.4 1 2-3.5-2-1.4c.1-.6.2-1.2.2-1.8Z"/></svg>'
+};
 const navItems = [
-  { hash: '#dashboard', icon: '⌂' },
-  { hash: '#tagihan', icon: '!' },
-  { hash: '#kalkulator', icon: '+' },
-  { hash: '#laporan', icon: '▦' },
-  { hash: '#pengaturan', icon: '⚙' }
+  { hash: '#dashboard', icon: icons.home },
+  { hash: '#tagihan', icon: icons.bill },
+  { hash: '#kalkulator', icon: icons.calc },
+  { hash: '#laporan', icon: icons.report },
+  { hash: '#pengaturan', icon: icons.settings }
 ];
 
 const state = {
