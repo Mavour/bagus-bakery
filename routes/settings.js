@@ -8,6 +8,18 @@ router.get('/', (_req, res) => {
   res.json(Object.fromEntries(rows.map((row) => [row.key, row.value])));
 });
 
+router.get('/export/all', (_req, res) => {
+  const data = {
+    products: db.prepare('SELECT * FROM products ORDER BY name').all(),
+    sales: db.prepare('SELECT * FROM sales ORDER BY datetime(created_at) DESC').all(),
+    calculations: db.prepare('SELECT * FROM profit_calculations ORDER BY datetime(created_at) DESC').all(),
+    settings: db.prepare('SELECT * FROM settings ORDER BY key').all(),
+    exported_at: new Date().toISOString()
+  };
+  res.setHeader('Content-Disposition', 'attachment; filename="bagus-bakery-data.json"');
+  res.json(data);
+});
+
 router.get('/:key', (req, res) => {
   const row = db.prepare('SELECT key, value FROM settings WHERE key = ?').get(req.params.key);
   if (!row) return res.status(404).json({ error: 'Pengaturan tidak ditemukan' });
@@ -41,18 +53,6 @@ router.post('/reset-data', (req, res, next) => {
   } catch (error) {
     next(error);
   }
-});
-
-router.get('/export/all', (_req, res) => {
-  const data = {
-    products: db.prepare('SELECT * FROM products ORDER BY name').all(),
-    sales: db.prepare('SELECT * FROM sales ORDER BY datetime(created_at) DESC').all(),
-    calculations: db.prepare('SELECT * FROM profit_calculations ORDER BY datetime(created_at) DESC').all(),
-    settings: db.prepare('SELECT * FROM settings ORDER BY key').all(),
-    exported_at: new Date().toISOString()
-  };
-  res.setHeader('Content-Disposition', 'attachment; filename="bagus-bakery-data.json"');
-  res.json(data);
 });
 
 module.exports = router;

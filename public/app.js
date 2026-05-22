@@ -7,20 +7,18 @@ const modalBody = document.getElementById('modal-body');
 const modalClose = document.getElementById('modal-close');
 const toastWrap = document.getElementById('toast-wrap');
 
-const defaultNavLabels = ['Dashboard', 'Tagihan', 'Kalkulator', 'Laporan', 'Setelan'];
+const defaultNavLabels = ['Dashboard', 'Tagihan', 'Kalkulator', 'Laporan'];
 const icons = {
   home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.5Z"/></svg>',
   bill: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2V3Zm3 5h7M10 12h7M10 16h4"/></svg>',
   calc: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm3 4h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>',
-  report: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V5M5 19h14M9 16v-5M13 16V8M17 16v-8"/></svg>',
-  settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm8 4a8 8 0 0 0-.2-1.8l2-1.4-2-3.5-2.4 1a8 8 0 0 0-3-1.7L12 2H8l-.4 2.6a8 8 0 0 0-3 1.7l-2.4-1-2 3.5 2 1.4A8 8 0 0 0 2 12c0 .6.1 1.2.2 1.8l-2 1.4 2 3.5 2.4-1a8 8 0 0 0 3 1.7L8 22h4l.4-2.6a8 8 0 0 0 3-1.7l2.4 1 2-3.5-2-1.4c.1-.6.2-1.2.2-1.8Z"/></svg>'
+  report: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V5M5 19h14M9 16v-5M13 16V8M17 16v-8"/></svg>'
 };
 const navItems = [
   { hash: '#dashboard', icon: icons.home },
   { hash: '#tagihan', icon: icons.bill },
   { hash: '#kalkulator', icon: icons.calc },
-  { hash: '#laporan', icon: icons.report },
-  { hash: '#pengaturan', icon: icons.settings }
+  { hash: '#laporan', icon: icons.report }
 ];
 
 const state = {
@@ -176,7 +174,7 @@ async function refreshCommon() {
   state.settings = settings;
   try {
     const parsed = JSON.parse(settings.nav_labels || 'null');
-    state.navLabels = Array.isArray(parsed) && parsed.length === 5 ? parsed : [...defaultNavLabels];
+    state.navLabels = Array.isArray(parsed) && parsed.length === navItems.length ? parsed : [...defaultNavLabels];
   } catch (_error) {
     state.navLabels = [...defaultNavLabels];
   }
@@ -903,94 +901,6 @@ function chartOptions() {
   };
 }
 
-function renderSettings() {
-  const shopName = state.settings.shop_name || 'Bagus Bakery';
-  app.innerHTML = `
-    <h1 class="page-title">Pengaturan</h1>
-    <p class="page-subtitle">Ubah preferensi tampilan dan kelola data.</p>
-
-    <section class="section card panel">
-      <form class="form-grid" id="shop-form">
-        <div class="field">
-          <label for="shop-name">Nama toko</label>
-          <input id="shop-name" value="${escapeHtml(shopName)}" required>
-        </div>
-        <button class="btn" type="submit">Simpan Nama Toko</button>
-      </form>
-    </section>
-
-    <section class="section card panel">
-      <div class="section-header"><h2>Nama Menu Navigasi</h2></div>
-      <form class="form-grid" id="nav-form">
-        ${navItems.map((item, index) => `
-          <div class="field">
-            <label>${item.icon}</label>
-            <input class="nav-label-input" maxlength="10" value="${escapeHtml(state.navLabels[index] || defaultNavLabels[index])}" required>
-          </div>
-        `).join('')}
-        <button class="btn" type="submit">Simpan Nama Menu</button>
-      </form>
-    </section>
-
-    <section class="section card panel">
-      <div class="section-header"><h2>Data</h2></div>
-      <div class="button-row">
-        <a class="btn secondary" href="/api/settings/export/all" download>Export Data</a>
-        <button class="btn danger" type="button" id="reset-data">Hapus Semua Data</button>
-      </div>
-    </section>
-
-    <section class="section card panel">
-      <h2 class="compact-title">Informasi App</h2>
-      <p class="item-meta">Bagus Bakery v1.0.0. Dashboard internal untuk usaha kue rumahan.</p>
-    </section>
-  `;
-
-  document.getElementById('shop-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    try {
-      await api('/api/settings/shop_name', {
-        method: 'PUT',
-        body: JSON.stringify({ value: document.getElementById('shop-name').value })
-      });
-      showToast('Nama toko tersimpan');
-      await route();
-    } catch (error) {
-      showToast(error.message, 'error');
-    }
-  });
-
-  document.getElementById('nav-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const labels = Array.from(app.querySelectorAll('.nav-label-input')).map((input) => input.value.trim() || 'Menu');
-    try {
-      await api('/api/settings/nav_labels', {
-        method: 'PUT',
-        body: JSON.stringify({ value: JSON.stringify(labels) })
-      });
-      showToast('Nama menu tersimpan');
-      await route();
-    } catch (error) {
-      showToast(error.message, 'error');
-    }
-  });
-
-  document.getElementById('reset-data').addEventListener('click', async () => {
-    const confirmation = window.prompt('Ketik HAPUS untuk menghapus semua transaksi dan kalkulasi.');
-    if (confirmation !== 'HAPUS') return;
-    try {
-      await api('/api/settings/reset-data', {
-        method: 'POST',
-        body: JSON.stringify({ confirmation })
-      });
-      showToast('Data transaksi dan kalkulasi dihapus');
-      await route();
-    } catch (error) {
-      showToast(error.message, 'error');
-    }
-  });
-}
-
 async function route() {
   renderLoading();
   try {
@@ -1001,7 +911,10 @@ async function route() {
     if (hash === '#tagihan') renderDebts();
     else if (hash === '#kalkulator') renderCalculator();
     else if (hash === '#laporan') await renderReports();
-    else if (hash === '#pengaturan') renderSettings();
+    else if (hash === '#pengaturan') {
+      window.location.hash = '#dashboard';
+      return;
+    }
     else renderDashboard();
   } catch (error) {
     app.innerHTML = emptyState(error.message);
