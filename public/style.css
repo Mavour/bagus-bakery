@@ -474,6 +474,11 @@ a {
   gap: 10px;
 }
 
+.report-actions {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
 .summary-line {
   display: flex;
   justify-content: space-between;

@@ -1272,6 +1272,10 @@ async function renderReports() {
       <button class="btn secondary" type="button" data-month-nav="1">&gt;</button>
     </div>
 
+    <div class="section button-row report-actions">
+      <button class="btn" type="button" id="export-report">Export PDF</button>
+    </div>
+
     <div class="grid stats-grid">
       ${statCard('Total pemasukan', formatCurrency(report.total_revenue))}
       ${statCard('Persediaan masuk', formatCurrency(report.total_expenses), report.total_expenses > 0)}
@@ -1337,9 +1341,6 @@ async function renderReports() {
 
     <details class="section card panel">
       <summary class="compact-title">Daftar transaksi bulan ini</summary>
-      <div class="button-row" style="margin-top:14px">
-        <button class="btn secondary" type="button" id="export-report">Export Laporan</button>
-      </div>
       <div class="list" style="margin-top:14px">
         ${state.sales.filter((sale) => String(sale.created_at).startsWith(`${year}-${String(month).padStart(2, '0')}`)).map(saleItem).join('') || emptyState('Tidak ada transaksi.')}
       </div>
@@ -1351,7 +1352,7 @@ async function renderReports() {
     window.history.replaceState(null, '', `?year=${next.getFullYear()}&month=${next.getMonth() + 1}${window.location.hash || '#laporan'}`);
     route();
   }));
-  document.getElementById('export-report').addEventListener('click', () => exportReport(report));
+  document.getElementById('export-report').addEventListener('click', () => exportReport(report, year, month));
   attachSaleActions();
   createChart('monthly', 'monthly-chart', {
     type: 'line',
@@ -1383,24 +1384,323 @@ function profitSummary(profit) {
   `;
 }
 
-function exportReport(report) {
-  const lines = [
-    'Bagus Bakery',
-    `Laporan: ${report.period}`,
-    `Total Pemasukan: ${formatCurrency(report.total_revenue)}`,
-    `Persediaan Masuk: ${formatCurrency(report.total_expenses)}`,
-    `Total Transaksi: ${report.total_transactions}`,
-    `Piutang: ${formatCurrency(report.total_unpaid)}`,
-    '',
-    'Produk,Kotak,Pendapatan,Persentase',
-    ...report.revenue_by_product.map((item) => `${item.product_name},${item.boxes},${item.revenue},${item.percentage}%`)
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `laporan-${report.period.toLowerCase().replace(/\s+/g, '-')}.csv`;
-  link.click();
-  URL.revokeObjectURL(link.href);
+function exportReport(report, year, month) {
+  const key = `${year}-${String(month).padStart(2, '0')}`;
+  const transactions = state.sales.filter((sale) => String(sale.created_at).startsWith(key));
+  const generatedAt = new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date());
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+  if (!printWindow) {
+    showToast('Popup diblokir browser. Izinkan popup untuk export PDF.', 'error');
+    return;
+  }
+
+  const html = `
+    <!doctype html>
+    <html lang="id">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Laporan Bagus Bakery - ${escapeHtml(report.period)}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          background: #f5efe7;
+          color: #2c1810;
+          font-family: Arial, sans-serif;
+          line-height: 1.4;
+        }
+        .sheet {
+          width: 210mm;
+          min-height: 297mm;
+          margin: 0 auto;
+          background: #fffdf9;
+          padding: 18mm;
+          position: relative;
+        }
+        .sheet::before {
+          content: "";
+          position: absolute;
+          inset: 0 0 auto;
+          height: 9mm;
+          background: linear-gradient(90deg, #3d1c02, #c96a2b 45%, #d9a441);
+        }
+        .print-actions {
+          position: sticky;
+          top: 0;
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          padding: 12px;
+          background: rgba(245, 239, 231, 0.92);
+          border-bottom: 1px solid #ead9c8;
+        }
+        .print-actions button {
+          min-height: 40px;
+          border: 0;
+          border-radius: 8px;
+          padding: 9px 14px;
+          background: #c96a2b;
+          color: white;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .print-actions button.secondary {
+          background: white;
+          color: #3d1c02;
+          border: 1px solid #ead9c8;
+        }
+        .report-header {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 18px;
+          align-items: start;
+          margin-top: 10mm;
+          padding-bottom: 10mm;
+          border-bottom: 2px solid #ead9c8;
+        }
+        .brand {
+          color: #3d1c02;
+          font-size: 30px;
+          font-weight: 800;
+          letter-spacing: 0;
+        }
+        .title {
+          margin: 5px 0 0;
+          color: #c96a2b;
+          font-size: 18px;
+          font-weight: 800;
+        }
+        .meta {
+          text-align: right;
+          color: #8b6355;
+          font-size: 12px;
+        }
+        .period-pill {
+          display: inline-block;
+          margin-bottom: 7px;
+          border-radius: 999px;
+          padding: 6px 10px;
+          background: #f5ecd7;
+          color: #3d1c02;
+          font-weight: 800;
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+          margin: 12mm 0 8mm;
+        }
+        .metric {
+          min-height: 28mm;
+          border: 1px solid #ead9c8;
+          border-left: 4px solid #c96a2b;
+          border-radius: 8px;
+          padding: 10px;
+          background: #fffaf2;
+        }
+        .metric .label {
+          margin: 0 0 5px;
+          color: #8b6355;
+          font-size: 10px;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+        .metric .value {
+          margin: 0;
+          color: #3d1c02;
+          font-size: 18px;
+          font-weight: 800;
+          overflow-wrap: anywhere;
+        }
+        .section-title {
+          margin: 9mm 0 4mm;
+          color: #3d1c02;
+          font-size: 15px;
+          font-weight: 800;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          page-break-inside: avoid;
+          background: white;
+        }
+        th {
+          background: #3d1c02;
+          color: white;
+          font-size: 11px;
+          text-align: left;
+          padding: 8px;
+        }
+        td {
+          border-bottom: 1px solid #ead9c8;
+          padding: 8px;
+          font-size: 11px;
+          vertical-align: top;
+        }
+        tr:nth-child(even) td { background: #fffaf2; }
+        .amount { text-align: right; white-space: nowrap; }
+        .profit-box {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 8px;
+          border: 1px solid #ead9c8;
+          border-radius: 8px;
+          padding: 10px;
+          background: #f5ecd7;
+        }
+        .profit-box span {
+          display: block;
+          color: #8b6355;
+          font-size: 10px;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+        .profit-box strong {
+          display: block;
+          margin-top: 4px;
+          color: #3d1c02;
+          font-size: 13px;
+        }
+        .footer {
+          margin-top: 12mm;
+          padding-top: 5mm;
+          border-top: 1px solid #ead9c8;
+          color: #8b6355;
+          font-size: 10px;
+          text-align: center;
+        }
+        @page { size: A4; margin: 0; }
+        @media print {
+          body { background: white; }
+          .print-actions { display: none; }
+          .sheet { width: auto; min-height: auto; margin: 0; box-shadow: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="print-actions">
+        <button onclick="window.print()">Cetak / Simpan PDF</button>
+        <button class="secondary" onclick="window.close()">Tutup</button>
+      </div>
+      <main class="sheet">
+        <header class="report-header">
+          <div>
+            <div class="brand">Bagus Bakery</div>
+            <div class="title">Laporan Bulanan</div>
+          </div>
+          <div class="meta">
+            <div class="period-pill">${escapeHtml(report.period)}</div>
+            <div>Dibuat: ${escapeHtml(generatedAt)}</div>
+          </div>
+        </header>
+
+        <section class="summary-grid">
+          ${pdfMetric('Total Pemasukan', formatCurrency(report.total_revenue))}
+          ${pdfMetric('Persediaan Masuk', formatCurrency(report.total_expenses))}
+          ${pdfMetric('Piutang', formatCurrency(report.total_unpaid))}
+          ${pdfMetric('Transaksi', report.total_transactions)}
+          ${pdfMetric('Kotak Terjual', report.total_boxes_sold)}
+          ${pdfMetric('Produk Terlaris', report.revenue_by_product[0]?.product_name || '-')}
+        </section>
+
+        <h2 class="section-title">Breakdown Produk</h2>
+        ${pdfTable(
+          ['Produk', 'Kotak', 'Pendapatan', 'Kontribusi'],
+          report.revenue_by_product.map((item) => [
+            item.product_name,
+            item.boxes,
+            formatCurrency(item.revenue),
+            `${item.percentage}%`
+          ]),
+          'Belum ada transaksi produk bulan ini.'
+        )}
+
+        <h2 class="section-title">Breakdown Persediaan Masuk</h2>
+        ${pdfTable(
+          ['Kategori', 'Catatan', 'Total'],
+          report.expenses_by_category.map((item) => [
+            item.category,
+            item.count,
+            formatCurrency(item.amount)
+          ]),
+          'Belum ada persediaan masuk bulan ini.'
+        )}
+
+        <h2 class="section-title">Estimasi Keuntungan Bersih</h2>
+        ${pdfProfitSummary(report.estimated_profit)}
+
+        <h2 class="section-title">Daftar Transaksi</h2>
+        ${pdfTable(
+          ['Tanggal', 'Pembeli', 'Status', 'Total'],
+          transactions.map((sale) => [
+            formatDate(sale.created_at),
+            sale.buyer_name,
+            sale.status === 'paid' ? 'Lunas' : 'Belum bayar',
+            formatCurrency(sale.total_amount)
+          ]),
+          'Tidak ada transaksi bulan ini.'
+        )}
+
+        <div class="footer">
+          Laporan ini dibuat otomatis dari data Bagus Bakery.
+        </div>
+      </main>
+      <script>
+        window.addEventListener('load', () => setTimeout(() => window.print(), 350));
+      </script>
+    </body>
+    </html>
+  `;
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+}
+
+function pdfMetric(label, value) {
+  return `
+    <article class="metric">
+      <p class="label">${escapeHtml(label)}</p>
+      <p class="value">${escapeHtml(value)}</p>
+    </article>
+  `;
+}
+
+function pdfTable(headers, rows, emptyMessage) {
+  if (!rows.length) return `<p>${escapeHtml(emptyMessage)}</p>`;
+  return `
+    <table>
+      <thead>
+        <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr>
+      </thead>
+      <tbody>
+        ${rows.map((row) => `
+          <tr>${row.map((cell, index) => `<td class="${index === row.length - 1 ? 'amount' : ''}">${escapeHtml(cell)}</td>`).join('')}</tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function pdfProfitSummary(profit) {
+  if (!profit.has_calculation_data) {
+    return '<p>Simpan kalkulasi resep di halaman Kalkulator untuk melihat estimasi keuntungan bersih.</p>';
+  }
+  return `
+    <div class="profit-box">
+      <div><span>Pemasukan Lunas</span><strong>${formatCurrency(profit.total_revenue_paid)}</strong></div>
+      <div><span>Modal Produksi</span><strong>${formatCurrency(profit.estimated_cogs)}</strong></div>
+      <div><span>Untung Bersih</span><strong>${formatCurrency(profit.net_profit)}</strong></div>
+      <div><span>Margin</span><strong>${profit.margin_percent}%</strong></div>
+    </div>
+  `;
 }
 
 function chartOptions() {
