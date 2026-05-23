@@ -192,12 +192,10 @@ function dashboardStats() {
   const monthSales = state.sales.filter((sale) => String(sale.created_at).startsWith(thisMonth));
   const monthExpenses = state.expenses.filter((expense) => String(expense.purchased_at).startsWith(thisMonth));
   const monthExpensesTotal = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const monthRevenue = monthSales.filter((sale) => sale.status === 'paid').reduce((sum, sale) => sum + sale.total_amount, 0);
   return {
     todayRevenue: todaysSales.filter((sale) => sale.status === 'paid').reduce((sum, sale) => sum + sale.total_amount, 0),
-    monthRevenue,
+    monthRevenue: monthSales.filter((sale) => sale.status === 'paid').reduce((sum, sale) => sum + sale.total_amount, 0),
     monthExpensesTotal,
-    actualProfit: monthRevenue - monthExpensesTotal,
     todayTransactions: todaysSales.length,
     unpaidTotal: state.sales.filter((sale) => sale.status === 'unpaid').reduce((sum, sale) => sum + sale.total_amount, 0)
   };
@@ -228,8 +226,7 @@ function renderDashboard() {
     <div class="grid stats-grid">
       ${statCard('Penjualan hari ini', formatCurrency(stats.todayRevenue))}
       ${statCard('Penjualan bulan ini', formatCurrency(stats.monthRevenue))}
-      ${statCard('Belanja bulan ini', formatCurrency(stats.monthExpensesTotal), stats.monthExpensesTotal > 0)}
-      ${statCard('Laba aktual', formatCurrency(stats.actualProfit), stats.actualProfit < 0)}
+      ${statCard('Persediaan masuk', formatCurrency(stats.monthExpensesTotal), stats.monthExpensesTotal > 0)}
       ${statCard('Transaksi hari ini', `${stats.todayTransactions}`)}
       ${statCard('Bon belum dibayar', formatCurrency(stats.unpaidTotal), stats.unpaidTotal > 0)}
     </div>
@@ -511,7 +508,7 @@ function renderExpenses() {
 
     <div class="grid stats-grid">
       ${statCard('Belanja hari ini', formatCurrency(todayTotal), todayTotal > 0)}
-      ${statCard('Belanja bulan ini', formatCurrency(monthTotal), monthTotal > 0)}
+      ${statCard('Persediaan masuk', formatCurrency(monthTotal), monthTotal > 0)}
       ${statCard('Jumlah catatan', `${monthExpenses.length}`)}
       ${statCard('Kategori aktif', `${Object.keys(categoryTotals).length}`)}
     </div>
@@ -941,8 +938,7 @@ async function renderReports() {
 
     <div class="grid stats-grid">
       ${statCard('Total pemasukan', formatCurrency(report.total_revenue))}
-      ${statCard('Total belanja', formatCurrency(report.total_expenses), report.total_expenses > 0)}
-      ${statCard('Laba aktual', formatCurrency(report.actual_profit.net_profit), report.actual_profit.net_profit < 0)}
+      ${statCard('Persediaan masuk', formatCurrency(report.total_expenses), report.total_expenses > 0)}
       ${statCard('Total transaksi', `${report.total_transactions}`)}
       ${statCard('Masih piutang', formatCurrency(report.total_unpaid), report.total_unpaid > 0)}
       ${statCard('Kotak terjual', `${report.total_boxes_sold}`)}
@@ -976,7 +972,7 @@ async function renderReports() {
     </section>
 
     <section class="section">
-      <div class="section-header"><h2>Breakdown Belanja</h2></div>
+      <div class="section-header"><h2>Breakdown Persediaan Masuk</h2></div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Kategori</th><th>Catatan</th><th>Total</th></tr></thead>
@@ -987,19 +983,9 @@ async function renderReports() {
                 <td>${item.count}</td>
                 <td>${formatCurrency(item.amount)}</td>
               </tr>
-            `).join('') : '<tr><td colspan="3">Belum ada belanja bulan ini.</td></tr>'}
+            `).join('') : '<tr><td colspan="3">Belum ada persediaan masuk bulan ini.</td></tr>'}
           </tbody>
         </table>
-      </div>
-    </section>
-
-    <section class="section card panel">
-      <div class="section-header"><h2>Laba Aktual dari Belanja</h2></div>
-      <div class="summary-box">
-        <div class="summary-line"><span>Total pemasukan lunas</span><strong>${formatCurrency(report.actual_profit.total_revenue_paid)}</strong></div>
-        <div class="summary-line"><span>Total belanja tercatat</span><strong>${formatCurrency(report.actual_profit.total_expenses)}</strong></div>
-        <div class="summary-line"><span>Laba aktual</span><strong>${formatCurrency(report.actual_profit.net_profit)}</strong></div>
-        <div class="summary-line"><span>Margin aktual</span><strong>${report.actual_profit.margin_percent}%</strong></div>
       </div>
     </section>
 
@@ -1065,8 +1051,7 @@ function exportReport(report) {
     'Bagus Bakery',
     `Laporan: ${report.period}`,
     `Total Pemasukan: ${formatCurrency(report.total_revenue)}`,
-    `Total Belanja: ${formatCurrency(report.total_expenses)}`,
-    `Laba Aktual: ${formatCurrency(report.actual_profit.net_profit)}`,
+    `Persediaan Masuk: ${formatCurrency(report.total_expenses)}`,
     `Total Transaksi: ${report.total_transactions}`,
     `Piutang: ${formatCurrency(report.total_unpaid)}`,
     '',

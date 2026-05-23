@@ -165,22 +165,14 @@ router.get('/monthly', (req, res) => {
   const previousRows = getMonthRows(monthKey(previous.year, previous.month));
   const previousExpenses = getMonthExpenses(monthKey(previous.year, previous.month));
   const previousAggregate = aggregateRows(previousRows, new Date(previous.year, previous.month, 0).getDate(), monthKey(previous.year, previous.month));
-  const previousExpenseAggregate = aggregateExpenses(previousExpenses);
 
   const revenueChange = aggregate.total_revenue - previousAggregate.total_revenue;
   const transactionChange = aggregate.total_transactions - previousAggregate.total_transactions;
-  const actualNetProfit = aggregate.total_revenue - expenseAggregate.total_expenses;
 
   res.json({
     period: `${monthNames[month - 1]} ${year}`,
     ...aggregate,
     ...expenseAggregate,
-    actual_profit: {
-      total_revenue_paid: aggregate.total_revenue,
-      total_expenses: expenseAggregate.total_expenses,
-      net_profit: actualNetProfit,
-      margin_percent: aggregate.total_revenue > 0 ? Number(((actualNetProfit / aggregate.total_revenue) * 100).toFixed(1)) : 0
-    },
     estimated_profit: estimateProfit(rows, aggregate.total_revenue),
     vs_last_month: {
       last_month_revenue: previousAggregate.total_revenue,
@@ -189,9 +181,7 @@ router.get('/monthly', (req, res) => {
         ? Number(((revenueChange / previousAggregate.total_revenue) * 100).toFixed(1))
         : aggregate.total_revenue > 0 ? 100 : 0,
       last_month_transactions: previousAggregate.total_transactions,
-      transaction_change: transactionChange,
-      last_month_expenses: previousExpenseAggregate.total_expenses,
-      expense_change: expenseAggregate.total_expenses - previousExpenseAggregate.total_expenses
+      transaction_change: transactionChange
     }
   });
 });
