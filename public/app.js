@@ -1398,6 +1398,7 @@ function exportReport(report, year, month) {
     hour: '2-digit',
     minute: '2-digit'
   }).format(new Date());
+  const logoUrl = `${window.location.origin}/logo.png?v=20260523-10`;
   const html = `
     <!doctype html>
     <html lang="id">
@@ -1456,12 +1457,26 @@ function exportReport(report, year, month) {
         }
         .report-header {
           display: grid;
-          grid-template-columns: 1fr auto;
+          grid-template-columns: auto 1fr auto;
           gap: 18px;
-          align-items: start;
+          align-items: center;
           margin-top: 10mm;
           padding-bottom: 10mm;
           border-bottom: 2px solid #ead9c8;
+        }
+        .logo-wrap {
+          display: grid;
+          width: 28mm;
+          height: 28mm;
+          place-items: center;
+          border: 1px solid #ead9c8;
+          border-radius: 10px;
+          background: white;
+        }
+        .logo {
+          width: 23mm;
+          height: 23mm;
+          object-fit: contain;
         }
         .brand {
           color: #3d1c02;
@@ -1589,6 +1604,9 @@ function exportReport(report, year, month) {
       </div>
       <main class="sheet">
         <header class="report-header">
+          <div class="logo-wrap">
+            <img class="logo" src="${escapeHtml(logoUrl)}" alt="Bagus Bakery" onerror="this.style.display='none'">
+          </div>
           <div>
             <div class="brand">Bagus Bakery</div>
             <div class="title">Laporan Bulanan</div>
