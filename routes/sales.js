@@ -23,10 +23,22 @@ function normalizeItems(items) {
   });
 }
 
+function normalizeSaleDate(value) {
+  if (!value) return new Date().toISOString().slice(0, 10) + ' 00:00:00';
+  const raw = String(value).trim();
+  const dateOnly = raw.slice(0, 10);
+  const date = new Date(dateOnly);
+  if (Number.isNaN(date.getTime())) {
+    throw Object.assign(new Error('Tanggal transaksi tidak valid'), { status: 400 });
+  }
+  return `${dateOnly} 00:00:00`;
+}
+
 function validateSale(body) {
   const buyerName = String(body.buyer_name || '').trim();
   const status = body.status === 'paid' ? 'paid' : 'unpaid';
   const items = normalizeItems(body.items);
+  const createdAt = normalizeSaleDate(body.created_at);
   const totalAmount = items.reduce((sum, item) => sum + item.qty * item.price_per_box, 0);
   if (!buyerName) throw Object.assign(new Error('Nama pembeli wajib diisi'), { status: 400 });
   return {
@@ -35,7 +47,8 @@ function validateSale(body) {
     total_amount: totalAmount,
     status,
     notes: String(body.notes || '').trim(),
-    paid_at: status === 'paid' ? new Date().toISOString() : null
+    created_at: createdAt,
+    paid_at: status === 'paid' ? createdAt : null
   };
 }
 
@@ -52,15 +65,16 @@ router.post('/', (req, res, next) => {
   try {
     const sale = validateSale(req.body);
     const info = db.prepare(`
-      INSERT INTO sales (buyer_name, items, total_amount, status, notes, paid_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO sales (buyer_name, items, total_amount, status, notes, paid_at, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       sale.buyer_name,
       JSON.stringify(sale.items),
       sale.total_amount,
       sale.status,
       sale.notes || null,
-      sale.paid_at
+      sale.paid_at,
+      sale.created_at
     );
     const created = db.prepare('SELECT * FROM sales WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json(serializeSale(created));
@@ -75,13 +89,11 @@ router.put('/:id', (req, res, next) => {
     if (!existing) throw Object.assign(new Error('Transaksi tidak ditemukan'), { status: 404 });
 
     const sale = validateSale(req.body);
-    const paidAt = sale.status === 'paid'
-      ? existing.paid_at || sale.paid_at
-      : null;
+    const paidAt = sale.status === 'paid' ? sale.paid_at : null;
 
     db.prepare(`
       UPDATE sales
-      SET buyer_name = ?, items = ?, total_amount = ?, status = ?, notes = ?, paid_at = ?
+      SET buyer_name = ?, items = ?, total_amount = ?, status = ?, notes = ?, paid_at = ?, created_at = ?
       WHERE id = ?
     `).run(
       sale.buyer_name,
@@ -90,6 +102,7 @@ router.put('/:id', (req, res, next) => {
       sale.status,
       sale.notes || null,
       paidAt,
+      sale.created_at,
       req.params.id
     );
     res.json(serializeSale(db.prepare('SELECT * FROM sales WHERE id = ?').get(req.params.id)));

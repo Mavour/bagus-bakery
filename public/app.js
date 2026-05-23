@@ -326,6 +326,10 @@ function showSaleModal(sale) {
         <label for="buyer-name">Nama pembeli</label>
         <input id="buyer-name" name="buyer_name" required autocomplete="name" value="${escapeHtml(sale?.buyer_name || '')}">
       </div>
+      <div class="field">
+        <label for="sale-date">Tanggal transaksi</label>
+        <input id="sale-date" type="date" required value="${toDateInputValue(sale?.created_at)}">
+      </div>
       <div id="sale-items" class="form-grid"></div>
       <button class="btn secondary" type="button" id="add-sale-item">+ Tambah Produk</button>
       <div class="summary-box">
@@ -411,6 +415,7 @@ function showSaleModal(sale) {
         method: editing ? 'PUT' : 'POST',
         body: JSON.stringify({
           buyer_name: document.getElementById('buyer-name').value,
+          created_at: document.getElementById('sale-date').value,
           items: readItems(),
           status: document.getElementById('sale-status').value,
           notes: document.getElementById('sale-notes').value
