@@ -6,6 +6,7 @@ const productsRouter = require('./routes/products');
 const salesRouter = require('./routes/sales');
 const calculationsRouter = require('./routes/calculations');
 const expensesRouter = require('./routes/expenses');
+const cashRouter = require('./routes/cash');
 const reportsRouter = require('./routes/reports');
 const settingsRouter = require('./routes/settings');
 
@@ -21,6 +22,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/sales', salesRouter);
 app.use('/api/calculations', calculationsRouter);
 app.use('/api/expenses', expensesRouter);
+app.use('/api/cash', cashRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/settings', settingsRouter);
 

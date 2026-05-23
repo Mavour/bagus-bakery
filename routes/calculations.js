@@ -75,6 +75,33 @@ router.post('/', (req, res, next) => {
   }
 });
 
+router.put('/:id', (req, res, next) => {
+  try {
+    const calculation = validateCalculation(req.body);
+    const info = db.prepare(`
+      UPDATE profit_calculations
+      SET product_name = ?, ingredients = ?, extra_costs = ?, total_cost = ?, boxes_produced = ?,
+          selling_price_per_box = ?, profit_per_box = ?, profit_per_batch = ?, margin_percent = ?
+      WHERE id = ?
+    `).run(
+      calculation.product_name,
+      JSON.stringify(calculation.ingredients),
+      calculation.extra_costs,
+      calculation.total_cost,
+      calculation.boxes_produced,
+      calculation.selling_price_per_box,
+      calculation.profit_per_box,
+      calculation.profit_per_batch,
+      calculation.margin_percent,
+      req.params.id
+    );
+    if (info.changes === 0) throw Object.assign(new Error('Kalkulasi tidak ditemukan'), { status: 404 });
+    res.json(serializeCalculation(db.prepare('SELECT * FROM profit_calculations WHERE id = ?').get(req.params.id)));
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/:id', (req, res, next) => {
   try {
     const info = db.prepare('DELETE FROM profit_calculations WHERE id = ?').run(req.params.id);

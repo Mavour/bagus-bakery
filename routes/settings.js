@@ -13,6 +13,7 @@ router.get('/export/all', (_req, res) => {
     products: db.prepare('SELECT * FROM products ORDER BY name').all(),
     sales: db.prepare('SELECT * FROM sales ORDER BY datetime(created_at) DESC').all(),
     expenses: db.prepare('SELECT * FROM expenses ORDER BY datetime(purchased_at) DESC, id DESC').all(),
+    cash_transactions: db.prepare('SELECT * FROM cash_transactions ORDER BY datetime(transaction_date) DESC, id DESC').all(),
     calculations: db.prepare('SELECT * FROM profit_calculations ORDER BY datetime(created_at) DESC').all(),
     settings: db.prepare('SELECT * FROM settings ORDER BY key').all(),
     exported_at: new Date().toISOString()
@@ -48,6 +49,7 @@ router.post('/reset-data', (req, res, next) => {
     const reset = db.transaction(() => {
       db.prepare('DELETE FROM sales').run();
       db.prepare('DELETE FROM expenses').run();
+      db.prepare('DELETE FROM cash_transactions').run();
       db.prepare('DELETE FROM profit_calculations').run();
     });
     reset();

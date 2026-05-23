@@ -7,11 +7,12 @@ const modalBody = document.getElementById('modal-body');
 const modalClose = document.getElementById('modal-close');
 const toastWrap = document.getElementById('toast-wrap');
 
-const defaultNavLabels = ['Dashboard', 'Tagihan', 'Belanja', 'Kalkulator', 'Laporan'];
+const defaultNavLabels = ['Dashboard', 'Tagihan', 'Belanja', 'Kas', 'Kalkulator', 'Laporan'];
 const icons = {
   home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.5Z"/></svg>',
   bill: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2V3Zm3 5h7M10 12h7M10 16h4"/></svg>',
   expense: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h15l-2 11H7L5 4H2M9 11h8M10 15h6M9 21a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1ZM18 21a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1Z"/></svg>',
+  cash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v10H3V7Zm3 3h.01M18 14h.01M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>',
   calc: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm3 4h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>',
   report: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V5M5 19h14M9 16v-5M13 16V8M17 16v-8"/></svg>'
 };
@@ -19,6 +20,7 @@ const navItems = [
   { hash: '#dashboard', icon: icons.home },
   { hash: '#tagihan', icon: icons.bill },
   { hash: '#belanja', icon: icons.expense },
+  { hash: '#kas', icon: icons.cash },
   { hash: '#kalkulator', icon: icons.calc },
   { hash: '#laporan', icon: icons.report }
 ];
@@ -27,6 +29,7 @@ const state = {
   products: [],
   sales: [],
   expenses: [],
+  cash: { summary: { total_in: 0, total_out: 0, balance: 0 }, entries: [] },
   calculations: [],
   settings: {},
   navLabels: [...defaultNavLabels],
@@ -165,16 +168,18 @@ function createChart(id, canvasId, config) {
 }
 
 async function refreshCommon() {
-  const [products, sales, expenses, calculations, settings] = await Promise.all([
+  const [products, sales, expenses, cash, calculations, settings] = await Promise.all([
     api('/api/products'),
     api('/api/sales?limit=500'),
     api('/api/expenses?limit=500'),
+    api('/api/cash?limit=500'),
     api('/api/calculations'),
     api('/api/settings')
   ]);
   state.products = products;
   state.sales = sales;
   state.expenses = expenses;
+  state.cash = cash;
   state.calculations = calculations;
   state.settings = settings;
   try {
@@ -252,7 +257,8 @@ function renderDashboard() {
     </section>
   `;
 
-  app.querySelector('[data-action="new-sale"]').addEventListener('click', showSaleModal);
+  app.querySelector('[data-action="new-sale"]').addEventListener('click', () => showSaleModal());
+  attachSaleActions();
   const week = weeklyRevenue();
   createChart('weekly', 'weekly-chart', {
     type: 'bar',
@@ -292,6 +298,10 @@ function saleItem(sale) {
           <p class="item-meta" style="text-align:right">${formatCurrency(sale.total_amount)}</p>
         </div>
       </div>
+      <div class="button-row">
+        <button class="btn secondary" type="button" data-edit-sale="${sale.id}">Edit</button>
+        <button class="btn danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
+      </div>
     </article>
   `;
 }
@@ -308,12 +318,13 @@ function productOptions(selected = '') {
   `).join('');
 }
 
-function showSaleModal() {
-  openModal('Catat Penjualan Baru', `
+function showSaleModal(sale) {
+  const editing = Boolean(sale);
+  openModal(editing ? 'Edit Penjualan' : 'Catat Penjualan Baru', `
     <form class="form-grid" id="sale-form">
       <div class="field">
         <label for="buyer-name">Nama pembeli</label>
-        <input id="buyer-name" name="buyer_name" required autocomplete="name">
+        <input id="buyer-name" name="buyer_name" required autocomplete="name" value="${escapeHtml(sale?.buyer_name || '')}">
       </div>
       <div id="sale-items" class="form-grid"></div>
       <button class="btn secondary" type="button" id="add-sale-item">+ Tambah Produk</button>
@@ -323,13 +334,13 @@ function showSaleModal() {
       <div class="field">
         <label for="sale-status">Status pembayaran</label>
         <select id="sale-status" name="status">
-          <option value="paid">Lunas</option>
-          <option value="unpaid">Belum Bayar</option>
+          <option value="paid" ${sale?.status === 'paid' ? 'selected' : ''}>Lunas</option>
+          <option value="unpaid" ${sale?.status !== 'paid' ? 'selected' : ''}>Belum Bayar</option>
         </select>
       </div>
       <div class="field">
         <label for="sale-notes">Catatan</label>
-        <textarea id="sale-notes" name="notes" rows="3"></textarea>
+        <textarea id="sale-notes" name="notes" rows="3">${escapeHtml(sale?.notes || '')}</textarea>
       </div>
       <button class="btn" type="submit">Simpan</button>
     </form>
@@ -340,8 +351,10 @@ function showSaleModal() {
   const form = document.getElementById('sale-form');
   const total = document.getElementById('sale-total');
 
-  function addRow(productId = state.products[0]?.id) {
-    const product = state.products.find((item) => String(item.id) === String(productId)) || state.products[0];
+  function addRow(productId = state.products[0]?.id, qty = 1, price, productName = '') {
+    const product = state.products.find((item) => String(item.id) === String(productId))
+      || state.products.find((item) => item.name === productName)
+      || state.products[0];
     const row = document.createElement('div');
     row.className = 'item-editor';
     row.innerHTML = `
@@ -351,11 +364,11 @@ function showSaleModal() {
       </div>
       <div class="field">
         <label>Jumlah</label>
-        <input class="sale-qty" type="number" min="1" value="1" required>
+        <input class="sale-qty" type="number" min="1" value="${qty}" required>
       </div>
       <div class="field">
         <label>Harga/kotak</label>
-        <input class="sale-price" type="number" min="0" value="${product?.price_per_box || 0}" required>
+        <input class="sale-price" type="number" min="0" value="${price ?? product?.price_per_box ?? 0}" required>
       </div>
       <button class="icon-button remove-row" type="button" aria-label="Hapus">x</button>
     `;
@@ -394,8 +407,8 @@ function showSaleModal() {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     try {
-      await api('/api/sales', {
-        method: 'POST',
+      await api(editing ? `/api/sales/${sale.id}` : '/api/sales', {
+        method: editing ? 'PUT' : 'POST',
         body: JSON.stringify({
           buyer_name: document.getElementById('buyer-name').value,
           items: readItems(),
@@ -411,7 +424,14 @@ function showSaleModal() {
     }
   });
 
-  addRow();
+  if (editing && sale.items?.length) {
+    sale.items.forEach((item) => {
+      const product = state.products.find((candidate) => candidate.name === item.product_name);
+      addRow(product?.id, item.qty, item.price_per_box, item.product_name);
+    });
+  } else {
+    addRow();
+  }
 }
 
 function renderDebts() {
@@ -469,6 +489,7 @@ function renderDebts() {
       });
     });
     app.querySelectorAll('[data-pay-id]').forEach((button) => button.addEventListener('click', markPaid));
+    attachSaleActions();
   }
 }
 
@@ -485,6 +506,8 @@ function debtItem(sale) {
       </div>
       <div class="button-row">
         <button class="btn success" type="button" data-pay-id="${sale.id}">Tandai Lunas</button>
+        <button class="btn secondary" type="button" data-edit-sale="${sale.id}">Edit</button>
+        <button class="btn danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
       </div>
     </article>
   `;
@@ -664,6 +687,167 @@ async function markPaid(event) {
   }
 }
 
+function attachSaleActions() {
+  app.querySelectorAll('[data-edit-sale]').forEach((button) => button.addEventListener('click', () => {
+    showSaleModal(state.sales.find((sale) => String(sale.id) === button.dataset.editSale));
+  }));
+  app.querySelectorAll('[data-delete-sale]').forEach((button) => button.addEventListener('click', deleteSale));
+}
+
+async function deleteSale(event) {
+  const id = event.currentTarget.dataset.deleteSale;
+  if (!window.confirm('Hapus transaksi penjualan ini?')) return;
+  try {
+    await api(`/api/sales/${id}`, { method: 'DELETE' });
+    showToast('Transaksi penjualan dihapus');
+    await route();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function renderCash() {
+  const summary = state.cash.summary || { total_in: 0, total_out: 0, balance: 0 };
+  const manualEntries = state.cash.entries.filter((entry) => entry.source === 'cash');
+  app.innerHTML = `
+    <h1 class="page-title">Kas</h1>
+    <p class="page-subtitle">Buku kas dari modal, penjualan lunas, belanja, dan koreksi manual.</p>
+
+    <div class="grid stats-grid">
+      ${statCard('Saldo kas', formatCurrency(summary.balance), summary.balance < 0)}
+      ${statCard('Dana masuk', formatCurrency(summary.total_in))}
+      ${statCard('Dana keluar', formatCurrency(summary.total_out), summary.total_out > 0)}
+      ${statCard('Catatan manual', `${manualEntries.length}`)}
+    </div>
+
+    <div class="section button-row">
+      <button class="btn" type="button" data-action="new-cash">+ Tambah Catatan Kas</button>
+    </div>
+
+    <section class="section">
+      <div class="section-header"><h2>Riwayat Kas</h2></div>
+      <div class="list">
+        ${state.cash.entries.length ? state.cash.entries.map(cashItem).join('') : emptyState('Belum ada catatan kas.')}
+      </div>
+    </section>
+  `;
+
+  app.querySelector('[data-action="new-cash"]').addEventListener('click', () => showCashModal());
+  app.querySelectorAll('[data-edit-cash]').forEach((button) => button.addEventListener('click', () => {
+    showCashModal(state.cash.entries.find((entry) => String(entry.raw_id) === button.dataset.editCash && entry.source === 'cash'));
+  }));
+  app.querySelectorAll('[data-delete-cash]').forEach((button) => button.addEventListener('click', deleteCash));
+}
+
+function cashItem(entry) {
+  const incoming = entry.type === 'in';
+  return `
+    <article class="list-item">
+      <div class="list-row">
+        <div>
+          <p class="item-title">${escapeHtml(entry.description)}</p>
+          <p class="item-meta">${escapeHtml(entry.category_label)} - ${formatDate(entry.date)}</p>
+          ${entry.notes ? `<p class="item-meta">${escapeHtml(entry.notes)}</p>` : ''}
+        </div>
+        <div>
+          <span class="badge ${incoming ? 'success' : 'danger'}">${incoming ? 'Masuk' : 'Keluar'}</span>
+          <p class="item-meta" style="text-align:right">${formatCurrency(entry.amount)}</p>
+        </div>
+      </div>
+      ${entry.editable ? `
+        <div class="button-row">
+          <button class="btn secondary" type="button" data-edit-cash="${entry.raw_id}">Edit</button>
+          <button class="btn danger" type="button" data-delete-cash="${entry.raw_id}">Hapus</button>
+        </div>
+      ` : `<p class="item-meta">Otomatis dari ${entry.source === 'sale' ? 'penjualan lunas' : 'belanja'}.</p>`}
+    </article>
+  `;
+}
+
+function cashCategoryOptions(selected = 'capital') {
+  const options = [
+    ['capital', 'Modal'],
+    ['manual_in', 'Dana Masuk'],
+    ['manual_out', 'Dana Keluar'],
+    ['adjustment', 'Koreksi Kas']
+  ];
+  return options.map(([value, label]) => `
+    <option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>
+  `).join('');
+}
+
+function showCashModal(entry) {
+  const editing = Boolean(entry);
+  openModal(editing ? 'Edit Catatan Kas' : 'Tambah Catatan Kas', `
+    <form class="form-grid" id="cash-form">
+      <div class="field">
+        <label for="cash-date">Tanggal</label>
+        <input id="cash-date" type="date" required value="${toDateInputValue(entry?.date)}">
+      </div>
+      <div class="grid two-col">
+        <div class="field">
+          <label for="cash-type">Tipe</label>
+          <select id="cash-type">
+            <option value="in" ${entry?.type !== 'out' ? 'selected' : ''}>Masuk</option>
+            <option value="out" ${entry?.type === 'out' ? 'selected' : ''}>Keluar</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="cash-category">Kategori</label>
+          <select id="cash-category">${cashCategoryOptions(entry?.category || 'capital')}</select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="cash-description">Keterangan</label>
+        <input id="cash-description" required value="${escapeHtml(entry?.description || '')}" placeholder="Modal awal, tarik tunai, koreksi saldo">
+      </div>
+      <div class="field">
+        <label for="cash-amount">Nominal</label>
+        <input id="cash-amount" type="number" min="1" required value="${entry?.amount || 0}">
+      </div>
+      <div class="field">
+        <label for="cash-notes">Catatan</label>
+        <textarea id="cash-notes" rows="3">${escapeHtml(entry?.notes || '')}</textarea>
+      </div>
+      <button class="btn" type="submit">Simpan</button>
+    </form>
+  `);
+
+  document.getElementById('cash-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      await api(editing ? `/api/cash/${entry.raw_id}` : '/api/cash', {
+        method: editing ? 'PUT' : 'POST',
+        body: JSON.stringify({
+          transaction_date: document.getElementById('cash-date').value,
+          type: document.getElementById('cash-type').value,
+          category: document.getElementById('cash-category').value,
+          description: document.getElementById('cash-description').value,
+          amount: Number(document.getElementById('cash-amount').value),
+          notes: document.getElementById('cash-notes').value
+        })
+      });
+      closeModal();
+      showToast('Catatan kas tersimpan');
+      await route();
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
+}
+
+async function deleteCash(event) {
+  const id = event.currentTarget.dataset.deleteCash;
+  if (!window.confirm('Hapus catatan kas ini?')) return;
+  try {
+    await api(`/api/cash/${id}`, { method: 'DELETE' });
+    showToast('Catatan kas dihapus');
+    await route();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
 function renderCalculator() {
   app.innerHTML = `
     <h1 class="page-title">Kalkulator</h1>
@@ -740,6 +924,9 @@ function renderCalculator() {
     showProductModal(state.products.find((item) => String(item.id) === button.dataset.editProduct));
   }));
   app.querySelectorAll('[data-delete-product]').forEach((button) => button.addEventListener('click', deleteProduct));
+  app.querySelectorAll('[data-edit-calc]').forEach((button) => button.addEventListener('click', () => {
+    showCalculationModal(state.calculations.find((calc) => String(calc.id) === button.dataset.editCalc));
+  }));
   app.querySelectorAll('[data-delete-calc]').forEach((button) => button.addEventListener('click', deleteCalculation));
   setupCalculatorForm();
 }
@@ -754,7 +941,10 @@ function calcItem(calc) {
         </div>
         <strong>${formatCurrency(calc.profit_per_box)}/kotak</strong>
       </div>
-      <button class="btn danger" type="button" data-delete-calc="${calc.id}">Hapus</button>
+      <div class="button-row">
+        <button class="btn secondary" type="button" data-edit-calc="${calc.id}">Edit</button>
+        <button class="btn danger" type="button" data-delete-calc="${calc.id}">Hapus</button>
+      </div>
     </article>
   `;
 }
@@ -895,6 +1085,125 @@ function showProductModal(product) {
   });
 }
 
+function showCalculationModal(calc) {
+  if (!calc) return;
+  openModal('Edit Kalkulasi', `
+    <form class="form-grid" id="edit-calc-form">
+      <div class="field">
+        <label for="edit-calc-product">Nama produk</label>
+        <input id="edit-calc-product" required value="${escapeHtml(calc.product_name)}">
+      </div>
+      <div id="edit-ingredient-list" class="form-grid"></div>
+      <button class="btn secondary" type="button" id="edit-add-ingredient">+ Tambah Bahan</button>
+      <div class="grid two-col">
+        <div class="field">
+          <label for="edit-extra-costs">Biaya tambahan</label>
+          <input id="edit-extra-costs" type="number" min="0" value="${calc.extra_costs || 0}">
+        </div>
+        <div class="field">
+          <label for="edit-boxes-produced">Total kotak batch</label>
+          <input id="edit-boxes-produced" type="number" min="1" value="${calc.boxes_produced || 1}" required>
+        </div>
+        <div class="field">
+          <label for="edit-selling-price">Harga jual/kotak</label>
+          <input id="edit-selling-price" type="number" min="0" value="${calc.selling_price_per_box || 0}" required>
+        </div>
+      </div>
+      <div class="summary-box" id="edit-calc-result"></div>
+      <button class="btn" type="submit">Simpan</button>
+    </form>
+  `);
+
+  const ingredientList = document.getElementById('edit-ingredient-list');
+
+  function addIngredient(item = {}) {
+    const row = document.createElement('div');
+    row.className = 'ingredient-row';
+    row.innerHTML = `
+      <div class="field">
+        <label>Nama bahan</label>
+        <input class="ingredient-name" required value="${escapeHtml(item.name || '')}">
+      </div>
+      <div class="field">
+        <label>Jumlah</label>
+        <input class="ingredient-quantity" value="${escapeHtml(item.quantity || '')}" placeholder="500 gram">
+      </div>
+      <div class="field">
+        <label>Harga</label>
+        <input class="ingredient-price" type="number" min="0" value="${item.price || 0}" required>
+      </div>
+      <button class="icon-button remove-ingredient" type="button" aria-label="Hapus">x</button>
+    `;
+    ingredientList.appendChild(row);
+    row.querySelectorAll('input').forEach((input) => input.addEventListener('input', updateResult));
+    row.querySelector('.remove-ingredient').addEventListener('click', () => {
+      row.remove();
+      if (!ingredientList.children.length) addIngredient();
+      updateResult();
+    });
+    updateResult();
+  }
+
+  function readIngredients() {
+    return Array.from(ingredientList.children).map((row) => ({
+      name: row.querySelector('.ingredient-name').value,
+      quantity: row.querySelector('.ingredient-quantity').value,
+      price: Number(row.querySelector('.ingredient-price').value || 0)
+    }));
+  }
+
+  function payload() {
+    const ingredients = readIngredients();
+    const extraCosts = Number(document.getElementById('edit-extra-costs').value || 0);
+    const boxesProduced = Number(document.getElementById('edit-boxes-produced').value || 1);
+    const selling = Number(document.getElementById('edit-selling-price').value || 0);
+    const totalCost = ingredients.reduce((sum, item) => sum + item.price, 0) + extraCosts;
+    const revenue = boxesProduced * selling;
+    const profitBatch = revenue - totalCost;
+    return {
+      product_name: document.getElementById('edit-calc-product').value,
+      ingredients,
+      extra_costs: extraCosts,
+      boxes_produced: boxesProduced,
+      selling_price_per_box: selling,
+      totalCost,
+      revenue,
+      profitPerBox: boxesProduced > 0 ? selling - totalCost / boxesProduced : 0,
+      profitBatch,
+      margin: revenue > 0 ? (profitBatch / revenue) * 100 : 0
+    };
+  }
+
+  function updateResult() {
+    const data = payload();
+    document.getElementById('edit-calc-result').innerHTML = `
+      <div class="summary-line"><span>Total biaya produksi</span><strong>${formatCurrency(data.totalCost)}</strong></div>
+      <div class="summary-line"><span>Hasil penjualan</span><strong>${formatCurrency(data.revenue)}</strong></div>
+      <div class="summary-line"><span>Untung per kotak</span><strong>${formatCurrency(data.profitPerBox)}</strong></div>
+      <div class="summary-line"><span>Untung per batch</span><strong>${formatCurrency(data.profitBatch)}</strong></div>
+      <div class="summary-line"><span>Margin</span><strong>${data.margin.toFixed(1)}%</strong></div>
+    `;
+  }
+
+  document.getElementById('edit-add-ingredient').addEventListener('click', () => addIngredient());
+  ['edit-extra-costs', 'edit-boxes-produced', 'edit-selling-price', 'edit-calc-product'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', updateResult);
+  });
+  document.getElementById('edit-calc-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      await api(`/api/calculations/${calc.id}`, { method: 'PUT', body: JSON.stringify(payload()) });
+      closeModal();
+      showToast('Kalkulasi tersimpan');
+      await route();
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
+
+  (calc.ingredients?.length ? calc.ingredients : [{}]).forEach(addIngredient);
+}
+
 async function deleteProduct(event) {
   const id = event.currentTarget.dataset.deleteProduct;
   if (!window.confirm('Hapus produk ini?')) return;
@@ -1016,6 +1325,7 @@ async function renderReports() {
     route();
   }));
   document.getElementById('export-report').addEventListener('click', () => exportReport(report));
+  attachSaleActions();
   createChart('monthly', 'monthly-chart', {
     type: 'line',
     data: {
@@ -1101,6 +1411,7 @@ async function route() {
     if (!window.location.hash) window.location.hash = hash;
     if (hash === '#tagihan') renderDebts();
     else if (hash === '#belanja') renderExpenses();
+    else if (hash === '#kas') renderCash();
     else if (hash === '#kalkulator') renderCalculator();
     else if (hash === '#laporan') await renderReports();
     else if (hash === '#pengaturan') {

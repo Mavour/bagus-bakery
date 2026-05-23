@@ -69,6 +69,35 @@ router.post('/', (req, res, next) => {
   }
 });
 
+router.put('/:id', (req, res, next) => {
+  try {
+    const existing = db.prepare('SELECT * FROM sales WHERE id = ?').get(req.params.id);
+    if (!existing) throw Object.assign(new Error('Transaksi tidak ditemukan'), { status: 404 });
+
+    const sale = validateSale(req.body);
+    const paidAt = sale.status === 'paid'
+      ? existing.paid_at || sale.paid_at
+      : null;
+
+    db.prepare(`
+      UPDATE sales
+      SET buyer_name = ?, items = ?, total_amount = ?, status = ?, notes = ?, paid_at = ?
+      WHERE id = ?
+    `).run(
+      sale.buyer_name,
+      JSON.stringify(sale.items),
+      sale.total_amount,
+      sale.status,
+      sale.notes || null,
+      paidAt,
+      req.params.id
+    );
+    res.json(serializeSale(db.prepare('SELECT * FROM sales WHERE id = ?').get(req.params.id)));
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.patch('/:id/pay', (req, res, next) => {
   try {
     const info = db.prepare("UPDATE sales SET status = 'paid', paid_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);

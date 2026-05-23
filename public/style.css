@@ -85,6 +85,13 @@ a {
   font-weight: 700;
 }
 
+.bottom-nav a span:last-child {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.08;
+}
+
 .nav-icon {
   display: inline-grid;
   width: 30px;
@@ -696,6 +703,17 @@ tr:last-child td {
 
   .modal-backdrop {
     align-items: center;
+  }
+}
+
+@media (max-width: 380px) {
+  .bottom-nav a {
+    font-size: 10px;
+  }
+
+  .nav-icon {
+    width: 26px;
+    height: 24px;
   }
 }
 
