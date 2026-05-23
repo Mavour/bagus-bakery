@@ -414,11 +414,13 @@ a {
 .form-grid {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .field {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
 .field label {
@@ -430,12 +432,20 @@ a {
 .field select,
 .field textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 44px;
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background: white;
   color: var(--color-text);
   padding: 10px 12px;
+}
+
+.field input[type="date"] {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .field textarea {
@@ -457,6 +467,11 @@ a {
   border-radius: var(--radius);
   padding: 16px;
   background: var(--color-primary-pale);
+}
+
+.cash-action-grid {
+  display: grid;
+  gap: 10px;
 }
 
 .summary-line {
@@ -559,6 +574,7 @@ tr:last-child td {
 .modal {
   width: min(100%, 620px);
   max-height: 88vh;
+  overflow-x: hidden;
   overflow-y: auto;
   border-radius: 20px;
   background: var(--color-bg);
@@ -585,6 +601,7 @@ tr:last-child td {
 
 #modal-body {
   padding: 16px;
+  min-width: 0;
 }
 
 .toast-wrap {
@@ -731,6 +748,10 @@ tr:last-child td {
     grid-template-columns: 1fr 1fr;
   }
 
+  .cash-action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .item-editor,
   .ingredient-row {
     grid-template-columns: 1.5fr 0.75fr 1fr auto;
@@ -743,6 +764,10 @@ tr:last-child td {
 }
 
 @media (max-width: 380px) {
+  .modal-backdrop {
+    padding: 10px;
+  }
+
   .bottom-nav a {
     font-size: 10px;
   }

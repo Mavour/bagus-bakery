@@ -729,8 +729,10 @@ function renderCash() {
       ${statCard('Catatan manual', `${manualEntries.length}`)}
     </div>
 
-    <div class="section button-row">
-      <button class="btn" type="button" data-action="new-cash">+ Tambah Catatan Kas</button>
+    <div class="section cash-action-grid">
+      <button class="btn" type="button" data-action="cash-capital">+ Modal Masuk</button>
+      <button class="btn secondary" type="button" data-action="cash-out">+ Dana Keluar</button>
+      <button class="btn secondary" type="button" data-action="cash-adjustment">Koreksi Kas</button>
     </div>
 
     <section class="section">
@@ -741,7 +743,21 @@ function renderCash() {
     </section>
   `;
 
-  app.querySelector('[data-action="new-cash"]').addEventListener('click', () => showCashModal());
+  app.querySelector('[data-action="cash-capital"]').addEventListener('click', () => showCashModal(null, {
+    type: 'in',
+    category: 'capital',
+    description: 'Modal masuk'
+  }));
+  app.querySelector('[data-action="cash-out"]').addEventListener('click', () => showCashModal(null, {
+    type: 'out',
+    category: 'manual_out',
+    description: 'Dana keluar'
+  }));
+  app.querySelector('[data-action="cash-adjustment"]').addEventListener('click', () => showCashModal(null, {
+    type: 'in',
+    category: 'adjustment',
+    description: 'Koreksi kas'
+  }));
   app.querySelectorAll('[data-edit-cash]').forEach((button) => button.addEventListener('click', () => {
     showCashModal(state.cash.entries.find((entry) => String(entry.raw_id) === button.dataset.editCash && entry.source === 'cash'));
   }));
@@ -785,8 +801,10 @@ function cashCategoryOptions(selected = 'capital') {
   `).join('');
 }
 
-function showCashModal(entry) {
+function showCashModal(entry, defaults = {}) {
   const editing = Boolean(entry);
+  const type = entry?.type || defaults.type || 'in';
+  const category = entry?.category || defaults.category || 'capital';
   openModal(editing ? 'Edit Catatan Kas' : 'Tambah Catatan Kas', `
     <form class="form-grid" id="cash-form">
       <div class="field">
@@ -797,18 +815,18 @@ function showCashModal(entry) {
         <div class="field">
           <label for="cash-type">Tipe</label>
           <select id="cash-type">
-            <option value="in" ${entry?.type !== 'out' ? 'selected' : ''}>Masuk</option>
-            <option value="out" ${entry?.type === 'out' ? 'selected' : ''}>Keluar</option>
+            <option value="in" ${type !== 'out' ? 'selected' : ''}>Masuk</option>
+            <option value="out" ${type === 'out' ? 'selected' : ''}>Keluar</option>
           </select>
         </div>
         <div class="field">
           <label for="cash-category">Kategori</label>
-          <select id="cash-category">${cashCategoryOptions(entry?.category || 'capital')}</select>
+          <select id="cash-category">${cashCategoryOptions(category)}</select>
         </div>
       </div>
       <div class="field">
         <label for="cash-description">Keterangan</label>
-        <input id="cash-description" required value="${escapeHtml(entry?.description || '')}" placeholder="Modal awal, tarik tunai, koreksi saldo">
+        <input id="cash-description" required value="${escapeHtml(entry?.description || defaults.description || '')}" placeholder="Modal awal, tarik tunai, koreksi saldo">
       </div>
       <div class="field">
         <label for="cash-amount">Nominal</label>
