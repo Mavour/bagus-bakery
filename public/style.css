@@ -483,9 +483,29 @@ a {
   gap: 10px;
 }
 
-.report-actions {
-  justify-content: flex-end;
-  margin-top: 14px;
+.report-export-card {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(201, 106, 43, 0.22);
+  border-left: 5px solid var(--color-primary);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: linear-gradient(90deg, rgba(245, 236, 215, 0.84), rgba(255, 255, 255, 0.92));
+}
+
+.report-export-title {
+  margin: 0;
+  color: var(--color-dark);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.report-export-copy {
+  margin: 3px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .summary-line {
@@ -764,6 +784,10 @@ tr:last-child td {
 
   .cash-action-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .report-export-card {
+    grid-template-columns: 1fr auto;
   }
 
   .item-editor,

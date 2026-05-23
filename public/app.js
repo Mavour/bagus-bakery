@@ -1272,8 +1272,12 @@ async function renderReports() {
       <button class="btn secondary" type="button" data-month-nav="1">&gt;</button>
     </div>
 
-    <div class="section button-row report-actions">
-      <button class="btn" type="button" id="export-report">Export PDF</button>
+    <div class="section report-export-card">
+      <div>
+        <p class="report-export-title">Export laporan PDF</p>
+        <p class="report-export-copy">Format A4 rapi dengan ringkasan, tabel, dan estimasi profit.</p>
+      </div>
+      <button class="btn" type="button" id="export-report">Cetak / Simpan PDF</button>
     </div>
 
     <div class="grid stats-grid">
@@ -1394,12 +1398,6 @@ function exportReport(report, year, month) {
     hour: '2-digit',
     minute: '2-digit'
   }).format(new Date());
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-  if (!printWindow) {
-    showToast('Popup diblokir browser. Izinkan popup untuk export PDF.', 'error');
-    return;
-  }
-
   const html = `
     <!doctype html>
     <html lang="id">
@@ -1652,16 +1650,58 @@ function exportReport(report, year, month) {
           Laporan ini dibuat otomatis dari data Bagus Bakery.
         </div>
       </main>
-      <script>
-        window.addEventListener('load', () => setTimeout(() => window.print(), 350));
-      </script>
     </body>
     </html>
   `;
 
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
+  printReportHtml(html);
+}
+
+function printReportHtml(html) {
+  const existingFrame = document.getElementById('report-print-frame');
+  if (existingFrame) existingFrame.remove();
+
+  const frame = document.createElement('iframe');
+  frame.id = 'report-print-frame';
+  frame.title = 'Laporan PDF';
+  frame.setAttribute('aria-hidden', 'true');
+  frame.style.position = 'fixed';
+  frame.style.right = '0';
+  frame.style.bottom = '0';
+  frame.style.width = '1px';
+  frame.style.height = '1px';
+  frame.style.border = '0';
+  frame.style.opacity = '0';
+  document.body.appendChild(frame);
+
+  const frameWindow = frame.contentWindow;
+  const frameDocument = frame.contentDocument || frameWindow?.document;
+  if (!frameWindow || !frameDocument) {
+    frame.remove();
+    showToast('Export PDF gagal dibuka. Coba ulangi.', 'error');
+    return;
+  }
+
+  let printed = false;
+  const printFrame = () => {
+    if (printed) return;
+    printed = true;
+    try {
+      frameWindow.focus();
+      frameWindow.print();
+      showToast('Laporan PDF siap disimpan');
+      setTimeout(() => frame.remove(), 60000);
+    } catch (_error) {
+      frame.remove();
+      showToast('Export PDF gagal dibuka. Coba ulangi.', 'error');
+    }
+  };
+
+  frame.addEventListener('load', () => setTimeout(printFrame, 250), { once: true });
+  frameDocument.open();
+  frameDocument.write(html);
+  frameDocument.close();
+  setTimeout(printFrame, 900);
 }
 
 function pdfMetric(label, value) {
