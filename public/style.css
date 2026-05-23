@@ -443,9 +443,18 @@ a {
 }
 
 .field input[type="date"] {
+  display: block;
+  appearance: none;
+  -webkit-appearance: none;
   inline-size: 100%;
+  width: 100%;
   min-inline-size: 0;
   max-inline-size: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1.2;
+  padding-right: 10px;
 }
 
 .field textarea {
