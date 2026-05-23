@@ -330,6 +330,26 @@ a {
   gap: 8px;
 }
 
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid rgba(201, 106, 43, 0.12);
+  padding-top: 10px;
+}
+
+.card-actions.split {
+  justify-content: space-between;
+}
+
+.action-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .btn {
   display: inline-flex;
   min-height: 44px;
@@ -345,6 +365,15 @@ a {
   box-shadow: 0 10px 20px rgba(201, 106, 43, 0.18);
 }
 
+.btn.compact {
+  min-height: 36px;
+  border-radius: 9px;
+  padding: 7px 12px;
+  font-size: 13px;
+  line-height: 1.1;
+  box-shadow: none;
+}
+
 .btn.secondary {
   border-color: var(--color-border);
   background: var(--color-surface);
@@ -354,6 +383,13 @@ a {
 
 .btn.danger {
   background: var(--color-danger);
+}
+
+.btn.ghost-danger {
+  border-color: rgba(217, 64, 64, 0.28);
+  background: #FFF7F7;
+  color: var(--color-danger);
+  box-shadow: none;
 }
 
 .btn.success {
@@ -714,6 +750,17 @@ tr:last-child td {
   .nav-icon {
     width: 26px;
     height: 24px;
+  }
+
+  .card-actions,
+  .card-actions.split {
+    justify-content: stretch;
+  }
+
+  .card-actions > .btn,
+  .action-group,
+  .action-group .btn {
+    flex: 1 1 auto;
   }
 }
 

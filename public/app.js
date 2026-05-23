@@ -298,9 +298,9 @@ function saleItem(sale) {
           <p class="item-meta" style="text-align:right">${formatCurrency(sale.total_amount)}</p>
         </div>
       </div>
-      <div class="button-row">
-        <button class="btn secondary" type="button" data-edit-sale="${sale.id}">Ubah</button>
-        <button class="btn danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
+      <div class="card-actions">
+        <button class="btn compact secondary" type="button" data-edit-sale="${sale.id}">Ubah</button>
+        <button class="btn compact ghost-danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
       </div>
     </article>
   `;
@@ -511,10 +511,12 @@ function debtItem(sale) {
         </div>
         <strong>${formatCurrency(sale.total_amount)}</strong>
       </div>
-      <div class="button-row">
-        <button class="btn success" type="button" data-pay-id="${sale.id}">Tandai Lunas</button>
-        <button class="btn secondary" type="button" data-edit-sale="${sale.id}">Ubah</button>
-        <button class="btn danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
+      <div class="card-actions split">
+        <button class="btn compact success" type="button" data-pay-id="${sale.id}">Tandai Lunas</button>
+        <div class="action-group">
+          <button class="btn compact secondary" type="button" data-edit-sale="${sale.id}">Ubah</button>
+          <button class="btn compact ghost-danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
+        </div>
       </div>
     </article>
   `;
