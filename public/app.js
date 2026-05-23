@@ -299,7 +299,7 @@ function saleItem(sale) {
         </div>
       </div>
       <div class="button-row">
-        <button class="btn secondary" type="button" data-edit-sale="${sale.id}">Edit</button>
+        <button class="btn secondary" type="button" data-edit-sale="${sale.id}">Ubah</button>
         <button class="btn danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
       </div>
     </article>
@@ -475,12 +475,14 @@ function renderDebts() {
         </div>
       </section>
 
-      <details class="section card panel">
-        <summary class="compact-title">Riwayat bon lunas</summary>
-        <div class="list" style="margin-top:14px">
+      <section class="section">
+        <div class="section-header">
+          <h2>Sudah Lunas</h2>
+        </div>
+        <div class="list">
           ${paid.length ? paid.map(saleItem).join('') : emptyState('Belum ada bon lunas.')}
         </div>
-      </details>
+      </section>
     `;
     app.querySelectorAll('#debt-filter button').forEach((button) => {
       button.addEventListener('click', () => {
@@ -506,7 +508,7 @@ function debtItem(sale) {
       </div>
       <div class="button-row">
         <button class="btn success" type="button" data-pay-id="${sale.id}">Tandai Lunas</button>
-        <button class="btn secondary" type="button" data-edit-sale="${sale.id}">Edit</button>
+        <button class="btn secondary" type="button" data-edit-sale="${sale.id}">Ubah</button>
         <button class="btn danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
       </div>
     </article>
