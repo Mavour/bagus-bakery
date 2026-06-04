@@ -419,9 +419,6 @@ function exportInvoice(sale) {
           width: 27mm;
           height: 27mm;
           place-items: center;
-          border: 1px solid #ead9c8;
-          border-radius: 10px;
-          background: white;
         }
         .logo {
           width: 22mm;
@@ -1845,9 +1842,6 @@ function exportReport(report, year, month) {
           width: 28mm;
           height: 28mm;
           place-items: center;
-          border: 1px solid #ead9c8;
-          border-radius: 10px;
-          background: white;
         }
         .logo {
           width: 23mm;
