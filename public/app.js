@@ -563,7 +563,7 @@ function exportInvoice(sale) {
         }
         .payment-side {
           display: grid;
-          gap: 8mm;
+          gap: 4mm;
         }
         .notes {
           border: 1px solid #ead9c8;
