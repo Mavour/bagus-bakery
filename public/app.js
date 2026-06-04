@@ -331,6 +331,7 @@ function exportInvoice(sale) {
   }).format(new Date());
   const statusLabel = sale.status === 'paid' ? 'Lunas' : 'Belum Dibayar';
   const statusClass = sale.status === 'paid' ? 'paid' : 'unpaid';
+  const paidStamp = sale.status === 'paid' ? '<div class="paid-stamp">LUNAS</div>' : '';
   const logoUrl = `${window.location.origin}/logo.png?v=20260523-10`;
   const itemRows = (sale.items || []).map((item, index) => {
     const qty = Number(item.qty || 0);
@@ -371,6 +372,22 @@ function exportInvoice(sale) {
           background: #fffdf9;
           padding: 18mm;
           position: relative;
+        }
+        .paid-stamp {
+          position: absolute;
+          top: 48mm;
+          right: 20mm;
+          z-index: 1;
+          transform: rotate(-14deg);
+          border: 3px solid #1f7a3d;
+          border-radius: 8px;
+          padding: 7px 15px;
+          color: #1f7a3d;
+          font-size: 28px;
+          font-weight: 800;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          opacity: 0.78;
         }
         .sheet::before {
           content: "";
@@ -604,6 +621,7 @@ function exportInvoice(sale) {
         <button class="secondary" onclick="window.close()">Tutup</button>
       </div>
       <main class="sheet">
+        ${paidStamp}
         <header class="invoice-header">
           <div class="logo-wrap">
             <img class="logo" src="${escapeHtml(logoUrl)}" alt="Bagus Bakery" onerror="this.style.display='none'">
