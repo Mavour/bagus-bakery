@@ -374,10 +374,8 @@ function exportInvoice(sale) {
           position: relative;
         }
         .paid-stamp {
-          position: absolute;
-          top: 48mm;
-          right: 20mm;
-          z-index: 1;
+          justify-self: end;
+          align-self: center;
           transform: rotate(-14deg);
           border: 3px solid #1f7a3d;
           border-radius: 8px;
@@ -563,6 +561,10 @@ function exportInvoice(sale) {
           align-items: start;
           margin-top: 10mm;
         }
+        .payment-side {
+          display: grid;
+          gap: 8mm;
+        }
         .notes {
           border: 1px solid #ead9c8;
           border-left: 4px solid #c96a2b;
@@ -621,7 +623,6 @@ function exportInvoice(sale) {
         <button class="secondary" onclick="window.close()">Tutup</button>
       </div>
       <main class="sheet">
-        ${paidStamp}
         <header class="invoice-header">
           <div class="logo-wrap">
             <img class="logo" src="${escapeHtml(logoUrl)}" alt="Bagus Bakery" onerror="this.style.display='none'">
@@ -669,10 +670,13 @@ function exportInvoice(sale) {
             <h2>Catatan Pembayaran</h2>
             <div>Mohon simpan invoice ini sebagai bukti pesanan. Untuk tagihan yang belum dibayar, pembayaran dapat dikonfirmasi langsung ke Bagus Bakery.</div>
           </div>
-          <div class="total-box">
-            <div class="total-line"><span>Subtotal</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
-            <div class="total-line"><span>Diskon</span><strong>${formatCurrency(0)}</strong></div>
-            <div class="total-line"><span>Total</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
+          <div class="payment-side">
+            <div class="total-box">
+              <div class="total-line"><span>Subtotal</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
+              <div class="total-line"><span>Diskon</span><strong>${formatCurrency(0)}</strong></div>
+              <div class="total-line"><span>Total</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
+            </div>
+            ${paidStamp}
           </div>
         </section>
 
