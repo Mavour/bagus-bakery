@@ -299,11 +299,381 @@ function saleItem(sale) {
         </div>
       </div>
       <div class="card-actions">
+        <button class="btn compact secondary" type="button" data-invoice-sale="${sale.id}">Invoice</button>
         <button class="btn compact secondary" type="button" data-edit-sale="${sale.id}">Ubah</button>
         <button class="btn compact ghost-danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
       </div>
     </article>
   `;
+}
+
+function invoiceNumber(sale) {
+  const date = new Date(sale.created_at);
+  const year = Number.isNaN(date.getTime()) ? '0000' : date.getFullYear();
+  const month = Number.isNaN(date.getTime()) ? '00' : String(date.getMonth() + 1).padStart(2, '0');
+  const day = Number.isNaN(date.getTime()) ? '00' : String(date.getDate()).padStart(2, '0');
+  return `INV-${year}${month}${day}-${String(sale.id).padStart(4, '0')}`;
+}
+
+function exportInvoice(sale) {
+  if (!sale) {
+    showToast('Transaksi tidak ditemukan', 'error');
+    return;
+  }
+
+  const number = invoiceNumber(sale);
+  const generatedAt = new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date());
+  const statusLabel = sale.status === 'paid' ? 'Lunas' : 'Belum Dibayar';
+  const statusClass = sale.status === 'paid' ? 'paid' : 'unpaid';
+  const logoUrl = `${window.location.origin}/logo.png?v=20260523-10`;
+  const itemRows = (sale.items || []).map((item, index) => {
+    const qty = Number(item.qty || 0);
+    const price = Number(item.price_per_box || 0);
+    return `
+      <tr>
+        <td class="index">${index + 1}</td>
+        <td>
+          <strong>${escapeHtml(item.product_name)}</strong>
+          <span>${qty} kotak x ${formatCurrency(price)}</span>
+        </td>
+        <td class="qty">${qty}</td>
+        <td class="amount">${formatCurrency(price)}</td>
+        <td class="amount">${formatCurrency(qty * price)}</td>
+      </tr>
+    `;
+  }).join('');
+  const html = `
+    <!doctype html>
+    <html lang="id">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Invoice ${escapeHtml(number)} - Bagus Bakery</title>
+      <style>
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          background: #f5efe7;
+          color: #2c1810;
+          font-family: Arial, sans-serif;
+          line-height: 1.45;
+        }
+        .sheet {
+          width: 210mm;
+          min-height: 297mm;
+          margin: 0 auto;
+          background: #fffdf9;
+          padding: 18mm;
+          position: relative;
+        }
+        .sheet::before {
+          content: "";
+          position: absolute;
+          inset: 0 0 auto;
+          height: 9mm;
+          background: linear-gradient(90deg, #3d1c02, #c96a2b 48%, #d9a441);
+        }
+        .print-actions {
+          position: sticky;
+          top: 0;
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          padding: 12px;
+          background: rgba(245, 239, 231, 0.94);
+          border-bottom: 1px solid #ead9c8;
+          z-index: 2;
+        }
+        .print-actions button {
+          min-height: 40px;
+          border: 0;
+          border-radius: 8px;
+          padding: 9px 14px;
+          background: #c96a2b;
+          color: white;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .print-actions button.secondary {
+          background: white;
+          color: #3d1c02;
+          border: 1px solid #ead9c8;
+        }
+        .invoice-header {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          gap: 18px;
+          align-items: center;
+          margin-top: 10mm;
+          padding-bottom: 10mm;
+          border-bottom: 2px solid #ead9c8;
+        }
+        .logo-wrap {
+          display: grid;
+          width: 27mm;
+          height: 27mm;
+          place-items: center;
+          border: 1px solid #ead9c8;
+          border-radius: 10px;
+          background: white;
+        }
+        .logo {
+          width: 22mm;
+          height: 22mm;
+          object-fit: contain;
+        }
+        .brand {
+          color: #3d1c02;
+          font-size: 29px;
+          font-weight: 800;
+          letter-spacing: 0;
+        }
+        .brand-meta {
+          margin-top: 4px;
+          color: #8b6355;
+          font-size: 11px;
+        }
+        .invoice-title {
+          text-align: right;
+        }
+        .invoice-title h1 {
+          margin: 0;
+          color: #3d1c02;
+          font-size: 31px;
+          letter-spacing: 0;
+        }
+        .invoice-no {
+          display: inline-block;
+          margin-top: 6px;
+          border-radius: 999px;
+          padding: 6px 10px;
+          background: #f5ecd7;
+          color: #3d1c02;
+          font-size: 11px;
+          font-weight: 800;
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin: 12mm 0 9mm;
+        }
+        .info-box {
+          min-height: 34mm;
+          border: 1px solid #ead9c8;
+          border-radius: 8px;
+          padding: 12px;
+          background: #fffaf2;
+        }
+        .info-box h2 {
+          margin: 0 0 8px;
+          color: #8b6355;
+          font-size: 10px;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+        .customer {
+          margin: 0 0 5px;
+          color: #3d1c02;
+          font-size: 18px;
+          font-weight: 800;
+        }
+        .detail-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 4px 0;
+          color: #8b6355;
+          font-size: 11px;
+        }
+        .detail-row strong {
+          color: #3d1c02;
+          text-align: right;
+        }
+        .status {
+          display: inline-block;
+          border-radius: 999px;
+          padding: 6px 10px;
+          font-size: 11px;
+          font-weight: 800;
+        }
+        .status.paid {
+          background: #e6f4ea;
+          color: #1f7a3d;
+        }
+        .status.unpaid {
+          background: #fff1db;
+          color: #a65316;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          background: white;
+        }
+        th {
+          background: #3d1c02;
+          color: white;
+          font-size: 11px;
+          text-align: left;
+          padding: 9px 8px;
+        }
+        td {
+          border-bottom: 1px solid #ead9c8;
+          padding: 10px 8px;
+          font-size: 11px;
+          vertical-align: top;
+        }
+        td strong,
+        td span {
+          display: block;
+        }
+        td span {
+          margin-top: 3px;
+          color: #8b6355;
+          font-size: 10px;
+        }
+        tr:nth-child(even) td { background: #fffaf2; }
+        .index { width: 11mm; color: #8b6355; text-align: center; }
+        .qty { width: 18mm; text-align: center; }
+        .amount { text-align: right; white-space: nowrap; }
+        .totals {
+          display: grid;
+          grid-template-columns: 1fr 72mm;
+          gap: 12mm;
+          align-items: start;
+          margin-top: 10mm;
+        }
+        .notes {
+          border: 1px solid #ead9c8;
+          border-left: 4px solid #c96a2b;
+          border-radius: 8px;
+          padding: 11px;
+          background: #fffaf2;
+          color: #8b6355;
+          font-size: 11px;
+        }
+        .notes h2 {
+          margin: 0 0 5px;
+          color: #3d1c02;
+          font-size: 12px;
+        }
+        .total-box {
+          border: 1px solid #ead9c8;
+          border-radius: 8px;
+          overflow: hidden;
+          background: white;
+        }
+        .total-line {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 9px 11px;
+          border-bottom: 1px solid #ead9c8;
+          color: #8b6355;
+          font-size: 12px;
+        }
+        .total-line:last-child {
+          border-bottom: 0;
+          background: #3d1c02;
+          color: white;
+          font-size: 16px;
+          font-weight: 800;
+        }
+        .footer {
+          margin-top: 16mm;
+          padding-top: 6mm;
+          border-top: 1px solid #ead9c8;
+          color: #8b6355;
+          font-size: 10px;
+          text-align: center;
+        }
+        @page { size: A4; margin: 0; }
+        @media print {
+          body { background: white; }
+          .print-actions { display: none; }
+          .sheet { width: auto; min-height: auto; margin: 0; box-shadow: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="print-actions">
+        <button onclick="window.print()">Cetak / Simpan PDF</button>
+        <button class="secondary" onclick="window.close()">Tutup</button>
+      </div>
+      <main class="sheet">
+        <header class="invoice-header">
+          <div class="logo-wrap">
+            <img class="logo" src="${escapeHtml(logoUrl)}" alt="Bagus Bakery" onerror="this.style.display='none'">
+          </div>
+          <div>
+            <div class="brand">Bagus Bakery</div>
+            <div class="brand-meta">Invoice penjualan kue dan pesanan bakery</div>
+          </div>
+          <div class="invoice-title">
+            <h1>Invoice</h1>
+            <div class="invoice-no">${escapeHtml(number)}</div>
+          </div>
+        </header>
+
+        <section class="info-grid">
+          <div class="info-box">
+            <h2>Tagihan Kepada</h2>
+            <p class="customer">${escapeHtml(sale.buyer_name)}</p>
+            ${sale.notes ? `<div class="detail-row"><span>Catatan</span><strong>${escapeHtml(sale.notes)}</strong></div>` : ''}
+          </div>
+          <div class="info-box">
+            <h2>Detail Invoice</h2>
+            <div class="detail-row"><span>Nomor</span><strong>${escapeHtml(number)}</strong></div>
+            <div class="detail-row"><span>Tanggal</span><strong>${formatDate(sale.created_at)}</strong></div>
+            <div class="detail-row"><span>Status</span><strong><span class="status ${statusClass}">${statusLabel}</span></strong></div>
+            <div class="detail-row"><span>Dibuat</span><strong>${escapeHtml(generatedAt)}</strong></div>
+          </div>
+        </section>
+
+        <table>
+          <thead>
+            <tr>
+              <th class="index">No</th>
+              <th>Produk</th>
+              <th class="qty">Qty</th>
+              <th class="amount">Harga</th>
+              <th class="amount">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>${itemRows}</tbody>
+        </table>
+
+        <section class="totals">
+          <div class="notes">
+            <h2>Catatan Pembayaran</h2>
+            <div>Mohon simpan invoice ini sebagai bukti pesanan. Untuk tagihan yang belum dibayar, pembayaran dapat dikonfirmasi langsung ke Bagus Bakery.</div>
+          </div>
+          <div class="total-box">
+            <div class="total-line"><span>Subtotal</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
+            <div class="total-line"><span>Diskon</span><strong>${formatCurrency(0)}</strong></div>
+            <div class="total-line"><span>Total</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
+          </div>
+        </section>
+
+        <div class="footer">
+          Terima kasih sudah berbelanja di Bagus Bakery.
+        </div>
+      </main>
+    </body>
+    </html>
+  `;
+
+  printDocumentHtml(html, {
+    frameId: 'invoice-print-frame',
+    title: 'Invoice PDF',
+    successMessage: 'Invoice PDF siap disimpan'
+  });
 }
 
 function emptyState(message) {
@@ -514,6 +884,7 @@ function debtItem(sale) {
       <div class="card-actions split">
         <button class="btn compact success" type="button" data-pay-id="${sale.id}">Tandai Lunas</button>
         <div class="action-group">
+          <button class="btn compact secondary" type="button" data-invoice-sale="${sale.id}">Invoice</button>
           <button class="btn compact secondary" type="button" data-edit-sale="${sale.id}">Ubah</button>
           <button class="btn compact ghost-danger" type="button" data-delete-sale="${sale.id}">Hapus</button>
         </div>
@@ -697,6 +1068,9 @@ async function markPaid(event) {
 }
 
 function attachSaleActions() {
+  app.querySelectorAll('[data-invoice-sale]').forEach((button) => button.addEventListener('click', () => {
+    exportInvoice(state.sales.find((sale) => String(sale.id) === button.dataset.invoiceSale));
+  }));
   app.querySelectorAll('[data-edit-sale]').forEach((button) => button.addEventListener('click', () => {
     showSaleModal(state.sales.find((sale) => String(sale.id) === button.dataset.editSale));
   }));
@@ -1672,16 +2046,23 @@ function exportReport(report, year, month) {
     </html>
   `;
 
-  printReportHtml(html);
+  printDocumentHtml(html, {
+    frameId: 'report-print-frame',
+    title: 'Laporan PDF',
+    successMessage: 'Laporan PDF siap disimpan'
+  });
 }
 
-function printReportHtml(html) {
-  const existingFrame = document.getElementById('report-print-frame');
+function printDocumentHtml(html, options = {}) {
+  const frameId = options.frameId || 'print-frame';
+  const title = options.title || 'Dokumen PDF';
+  const successMessage = options.successMessage || 'PDF siap disimpan';
+  const existingFrame = document.getElementById(frameId);
   if (existingFrame) existingFrame.remove();
 
   const frame = document.createElement('iframe');
-  frame.id = 'report-print-frame';
-  frame.title = 'Laporan PDF';
+  frame.id = frameId;
+  frame.title = title;
   frame.setAttribute('aria-hidden', 'true');
   frame.style.position = 'fixed';
   frame.style.right = '0';
@@ -1707,7 +2088,7 @@ function printReportHtml(html) {
     try {
       frameWindow.focus();
       frameWindow.print();
-      showToast('Laporan PDF siap disimpan');
+      showToast(successMessage);
       setTimeout(() => frame.remove(), 60000);
     } catch (_error) {
       frame.remove();
