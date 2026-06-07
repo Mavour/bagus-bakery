@@ -70,10 +70,29 @@ function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS sale_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_id INTEGER NOT NULL,
+      amount INTEGER NOT NULL CHECK (amount > 0),
+      paid_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+  `);
+
+  db.exec(`
+    INSERT INTO sale_payments (sale_id, amount, paid_at)
+    SELECT id, total_amount, COALESCE(paid_at, created_at)
+    FROM sales
+    WHERE status = 'paid'
+      AND NOT EXISTS (
+        SELECT 1 FROM sale_payments WHERE sale_payments.sale_id = sales.id
+      );
   `);
 
   const productCount = db.prepare('SELECT COUNT(*) AS count FROM products').get().count;
@@ -99,9 +118,14 @@ function parseJson(value, fallback) {
 }
 
 function serializeSale(row) {
+  const paidAmount = Number(row.paid_amount || 0);
+  const totalAmount = Number(row.total_amount || 0);
   return {
     ...row,
-    items: parseJson(row.items, [])
+    items: parseJson(row.items, []),
+    paid_amount: paidAmount,
+    remaining_amount: Math.max(0, totalAmount - paidAmount),
+    status: paidAmount >= totalAmount ? 'paid' : 'unpaid'
   };
 }
 

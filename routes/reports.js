@@ -26,7 +26,17 @@ function addMonth(year, month, delta) {
 }
 
 function getMonthRows(key) {
-  return db.prepare("SELECT * FROM sales WHERE strftime('%Y-%m', created_at) = ? ORDER BY datetime(created_at) DESC").all(key);
+  return db.prepare(`
+    SELECT sales.*,
+      COALESCE((
+        SELECT SUM(amount)
+        FROM sale_payments
+        WHERE sale_payments.sale_id = sales.id
+      ), 0) AS paid_amount
+    FROM sales
+    WHERE strftime('%Y-%m', created_at) = ?
+    ORDER BY datetime(created_at) DESC
+  `).all(key);
 }
 
 function getMonthExpenses(key) {
@@ -65,16 +75,15 @@ function aggregateRows(rows, daysInMonth, key) {
 
   for (const row of rows) {
     const dateKey = String(row.created_at).slice(0, 10);
-    if (row.status === 'paid') {
-      totalRevenue += row.total_amount;
-      dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + row.total_amount);
-    } else {
-      totalUnpaid += row.total_amount;
-    }
+    const paidAmount = Number(row.paid_amount || 0);
+    totalRevenue += paidAmount;
+    totalUnpaid += Math.max(0, row.total_amount - paidAmount);
+    dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + paidAmount);
 
     for (const item of parseItems(row.items)) {
       const qty = Number(item.qty || 0);
-      const revenue = qty * Number(item.price_per_box || 0);
+      const paidRatio = row.total_amount > 0 ? Math.min(1, paidAmount / row.total_amount) : 0;
+      const revenue = qty * Number(item.price_per_box || 0) * paidRatio;
       totalBoxesSold += qty;
       const current = productMap.get(item.product_name) || { product_name: item.product_name, boxes: 0, revenue: 0 };
       current.boxes += qty;
@@ -128,10 +137,11 @@ function estimateProfit(rows, totalRevenuePaid) {
   }
 
   let estimatedCogs = 0;
-  for (const row of rows.filter((sale) => sale.status === 'paid')) {
+  for (const row of rows.filter((sale) => Number(sale.paid_amount || 0) > 0)) {
+    const paidRatio = Math.min(1, Number(row.paid_amount || 0) / row.total_amount);
     for (const item of parseItems(row.items)) {
       const costPerBox = costByProduct.get(item.product_name);
-      if (Number.isFinite(costPerBox)) estimatedCogs += costPerBox * Number(item.qty || 0);
+      if (Number.isFinite(costPerBox)) estimatedCogs += costPerBox * Number(item.qty || 0) * paidRatio;
     }
   }
 

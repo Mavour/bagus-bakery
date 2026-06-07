@@ -57,6 +57,20 @@ function formatDate(value) {
   return dateFormatter.format(new Date(value));
 }
 
+function paidAmount(sale) {
+  return Number(sale?.paid_amount || 0);
+}
+
+function remainingAmount(sale) {
+  return Math.max(0, Number(sale?.total_amount || 0) - paidAmount(sale));
+}
+
+function paymentStatus(sale) {
+  if (remainingAmount(sale) === 0) return { label: 'Lunas', badge: 'success', invoiceClass: 'paid' };
+  if (paidAmount(sale) > 0) return { label: 'Sebagian', badge: '', invoiceClass: 'partial' };
+  return { label: 'Belum', badge: 'danger', invoiceClass: 'unpaid' };
+}
+
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -198,11 +212,11 @@ function dashboardStats() {
   const monthExpenses = state.expenses.filter((expense) => String(expense.purchased_at).startsWith(thisMonth));
   const monthExpensesTotal = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   return {
-    todayRevenue: todaysSales.filter((sale) => sale.status === 'paid').reduce((sum, sale) => sum + sale.total_amount, 0),
-    monthRevenue: monthSales.filter((sale) => sale.status === 'paid').reduce((sum, sale) => sum + sale.total_amount, 0),
+    todayRevenue: todaysSales.reduce((sum, sale) => sum + paidAmount(sale), 0),
+    monthRevenue: monthSales.reduce((sum, sale) => sum + paidAmount(sale), 0),
     monthExpensesTotal,
     todayTransactions: todaysSales.length,
-    unpaidTotal: state.sales.filter((sale) => sale.status === 'unpaid').reduce((sum, sale) => sum + sale.total_amount, 0)
+    unpaidTotal: state.sales.reduce((sum, sale) => sum + remainingAmount(sale), 0)
   };
 }
 
@@ -215,8 +229,8 @@ function weeklyRevenue() {
     const key = localDateKey(date);
     labels.push(new Intl.DateTimeFormat('id-ID', { weekday: 'short', day: 'numeric' }).format(date));
     values.push(state.sales
-      .filter((sale) => sale.status === 'paid' && String(sale.created_at).startsWith(key))
-      .reduce((sum, sale) => sum + sale.total_amount, 0));
+      .filter((sale) => String(sale.created_at).startsWith(key))
+      .reduce((sum, sale) => sum + paidAmount(sale), 0));
   }
   return { labels, values };
 }
@@ -284,7 +298,7 @@ function statCard(label, value, warning = false) {
 }
 
 function saleItem(sale) {
-  const paid = sale.status === 'paid';
+  const status = paymentStatus(sale);
   return `
     <article class="list-item">
       <div class="list-row">
@@ -294,8 +308,11 @@ function saleItem(sale) {
           <p class="item-meta">${formatDate(sale.created_at)}</p>
         </div>
         <div>
-          <span class="badge ${paid ? 'success' : 'danger'}">${paid ? 'Lunas' : 'Belum'}</span>
+          <span class="badge ${status.badge}">${status.label}</span>
           <p class="item-meta" style="text-align:right">${formatCurrency(sale.total_amount)}</p>
+          ${paidAmount(sale) > 0 && remainingAmount(sale) > 0
+            ? `<p class="item-meta" style="text-align:right">Sisa ${formatCurrency(remainingAmount(sale))}</p>`
+            : ''}
         </div>
       </div>
       <div class="card-actions">
@@ -329,9 +346,10 @@ function exportInvoice(sale) {
     hour: '2-digit',
     minute: '2-digit'
   }).format(new Date());
-  const statusLabel = sale.status === 'paid' ? 'Lunas' : 'Belum Dibayar';
-  const statusClass = sale.status === 'paid' ? 'paid' : 'unpaid';
-  const paidStamp = sale.status === 'paid' ? '<div class="paid-stamp">LUNAS</div>' : '';
+  const status = paymentStatus(sale);
+  const statusLabel = status.label === 'Belum' ? 'Belum Dibayar' : status.label;
+  const statusClass = status.invoiceClass;
+  const paidStamp = remainingAmount(sale) === 0 ? '<div class="paid-stamp">LUNAS</div>' : '';
   const logoUrl = `${window.location.origin}/logo.png?v=20260523-10`;
   const itemRows = (sale.items || []).map((item, index) => {
     const qty = Number(item.qty || 0);
@@ -523,6 +541,10 @@ function exportInvoice(sale) {
           background: #fff1db;
           color: #a65316;
         }
+        .status.partial {
+          background: #fff1db;
+          color: #a65316;
+        }
         table {
           width: 100%;
           border-collapse: collapse;
@@ -673,8 +695,8 @@ function exportInvoice(sale) {
           <div class="payment-side">
             <div class="total-box">
               <div class="total-line"><span>Subtotal</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
-              <div class="total-line"><span>Diskon</span><strong>${formatCurrency(0)}</strong></div>
-              <div class="total-line"><span>Total</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
+              <div class="total-line"><span>Sudah dibayar</span><strong>${formatCurrency(paidAmount(sale))}</strong></div>
+              <div class="total-line"><span>Sisa tagihan</span><strong>${formatCurrency(remainingAmount(sale))}</strong></div>
             </div>
             ${paidStamp}
           </div>
@@ -845,7 +867,7 @@ function renderDebts() {
   function draw() {
     const unpaid = filteredUnpaid();
     const paid = state.sales.filter((sale) => sale.status === 'paid');
-    const total = unpaid.reduce((sum, sale) => sum + sale.total_amount, 0);
+    const total = unpaid.reduce((sum, sale) => sum + remainingAmount(sale), 0);
     app.innerHTML = `
       <h1 class="page-title">Bon / Tagihan</h1>
       <p class="page-subtitle">Pantau semua pesanan yang belum dibayar.</p>
@@ -885,11 +907,16 @@ function renderDebts() {
       });
     });
     app.querySelectorAll('[data-pay-id]').forEach((button) => button.addEventListener('click', markPaid));
+    app.querySelectorAll('[data-partial-pay-id]').forEach((button) => button.addEventListener('click', () => {
+      showPaymentModal(state.sales.find((sale) => String(sale.id) === button.dataset.partialPayId));
+    }));
     attachSaleActions();
   }
 }
 
 function debtItem(sale) {
+  const paid = paidAmount(sale);
+  const remaining = remainingAmount(sale);
   return `
     <article class="list-item">
       <div class="list-row">
@@ -898,11 +925,15 @@ function debtItem(sale) {
           <p class="item-meta">${itemSummary(sale.items)}</p>
           <p class="item-meta">${formatDate(sale.created_at)} - ${daysBetween(sale.created_at)} hari tertunggak</p>
         </div>
-        <strong>${formatCurrency(sale.total_amount)}</strong>
+        <div style="text-align:right">
+          <strong>${formatCurrency(remaining)}</strong>
+          ${paid > 0 ? `<p class="item-meta">Terbayar ${formatCurrency(paid)} dari ${formatCurrency(sale.total_amount)}</p>` : ''}
+        </div>
       </div>
       <div class="card-actions split">
         <div class="action-group">
-          <button class="btn compact success" type="button" data-pay-id="${sale.id}">Tandai Lunas</button>
+          <button class="btn compact success" type="button" data-partial-pay-id="${sale.id}">Bayar Sebagian</button>
+          <button class="btn compact secondary" type="button" data-pay-id="${sale.id}">Bayar Lunas</button>
           <button class="btn compact secondary" type="button" data-invoice-sale="${sale.id}">Cetak Invoice</button>
         </div>
         <div class="action-group">
@@ -1078,14 +1109,55 @@ async function deleteExpense(event) {
 
 async function markPaid(event) {
   const id = event.currentTarget.dataset.payId;
-  if (!window.confirm('Tandai bon ini sebagai lunas?')) return;
+  if (!window.confirm('Catat pembayaran seluruh sisa tagihan?')) return;
   try {
     await api(`/api/sales/${id}/pay`, { method: 'PATCH' });
-    showToast('Bon ditandai lunas');
+    showToast('Pembayaran lunas dicatat');
     await route();
   } catch (error) {
     showToast(error.message, 'error');
   }
+}
+
+function showPaymentModal(sale) {
+  if (!sale || remainingAmount(sale) <= 0) return;
+  const remaining = remainingAmount(sale);
+  openModal('Bayar Sebagian', `
+    <form class="form-grid" id="partial-payment-form">
+      <div class="summary-box">
+        <div class="summary-line"><span>Total tagihan</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
+        <div class="summary-line"><span>Sudah dibayar</span><strong>${formatCurrency(paidAmount(sale))}</strong></div>
+        <div class="summary-line"><span>Sisa tagihan</span><strong>${formatCurrency(remaining)}</strong></div>
+      </div>
+      <div class="field">
+        <label for="payment-amount">Nominal pembayaran</label>
+        <input id="payment-amount" type="number" min="1" max="${remaining}" value="${remaining}" required>
+      </div>
+      <div class="field">
+        <label for="payment-date">Tanggal pembayaran</label>
+        <input id="payment-date" type="date" value="${localDateKey()}" required>
+      </div>
+      <button class="btn success" type="submit">Simpan Pembayaran</button>
+    </form>
+  `);
+
+  document.getElementById('partial-payment-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      await api(`/api/sales/${sale.id}/pay`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          amount: Number(document.getElementById('payment-amount').value),
+          paid_at: document.getElementById('payment-date').value
+        })
+      });
+      closeModal();
+      showToast('Pembayaran sebagian dicatat');
+      await route();
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });
 }
 
 function attachSaleActions() {
@@ -1115,7 +1187,7 @@ function renderCash() {
   const manualEntries = state.cash.entries.filter((entry) => entry.source === 'cash');
   app.innerHTML = `
     <h1 class="page-title">Kas</h1>
-    <p class="page-subtitle">Buku kas dari modal, penjualan lunas, belanja, dan koreksi manual.</p>
+    <p class="page-subtitle">Buku kas dari modal, pembayaran penjualan, belanja, dan koreksi manual.</p>
 
     <div class="grid stats-grid">
       ${statCard('Saldo kas', formatCurrency(summary.balance), summary.balance < 0)}
@@ -1179,7 +1251,7 @@ function cashItem(entry) {
           <button class="btn secondary" type="button" data-edit-cash="${entry.raw_id}">Edit</button>
           <button class="btn danger" type="button" data-delete-cash="${entry.raw_id}">Hapus</button>
         </div>
-      ` : `<p class="item-meta">Otomatis dari ${entry.source === 'sale' ? 'penjualan lunas' : 'belanja'}.</p>`}
+      ` : `<p class="item-meta">Otomatis dari ${entry.source === 'sale' ? 'pembayaran penjualan' : 'belanja'}.</p>`}
     </article>
   `;
 }
@@ -2050,7 +2122,7 @@ function exportReport(report, year, month) {
           transactions.map((sale) => [
             formatDate(sale.created_at),
             sale.buyer_name,
-            sale.status === 'paid' ? 'Lunas' : 'Belum bayar',
+            paymentStatus(sale).label,
             formatCurrency(sale.total_amount)
           ]),
           'Tidak ada transaksi bulan ini.'

@@ -56,17 +56,17 @@ function manualRow(row) {
   };
 }
 
-function saleRow(row) {
+function salePaymentRow(row) {
   return {
-    id: `sale-${row.id}`,
+    id: `sale-payment-${row.id}`,
     raw_id: row.id,
     source: 'sale',
-    date: row.paid_at || row.created_at,
+    date: row.paid_at,
     type: 'in',
     category: 'sale',
-    category_label: 'Penjualan Lunas',
-    description: `Penjualan - ${row.buyer_name}`,
-    amount: row.total_amount,
+    category_label: 'Pembayaran Penjualan',
+    description: `Pembayaran - ${row.buyer_name}`,
+    amount: row.amount,
     notes: row.notes,
     editable: false
   };
@@ -90,7 +90,13 @@ function expenseRow(row) {
 
 function loadEntries(limit) {
   const manual = db.prepare('SELECT * FROM cash_transactions ORDER BY datetime(transaction_date) DESC, id DESC LIMIT ?').all(limit).map(manualRow);
-  const sales = db.prepare("SELECT * FROM sales WHERE status = 'paid' ORDER BY datetime(COALESCE(paid_at, created_at)) DESC LIMIT ?").all(limit).map(saleRow);
+  const sales = db.prepare(`
+    SELECT sale_payments.*, sales.buyer_name, sales.notes
+    FROM sale_payments
+    INNER JOIN sales ON sales.id = sale_payments.sale_id
+    ORDER BY datetime(sale_payments.paid_at) DESC, sale_payments.id DESC
+    LIMIT ?
+  `).all(limit).map(salePaymentRow);
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY datetime(purchased_at) DESC, id DESC LIMIT ?').all(limit).map(expenseRow);
 
   return [...manual, ...sales, ...expenses]
@@ -103,7 +109,7 @@ router.get('/', (req, res) => {
   const entries = loadEntries(limit);
   const manualIn = db.prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM cash_transactions WHERE type = 'in'").get().total;
   const manualOut = db.prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM cash_transactions WHERE type = 'out'").get().total;
-  const salesIn = db.prepare("SELECT COALESCE(SUM(total_amount), 0) AS total FROM sales WHERE status = 'paid'").get().total;
+  const salesIn = db.prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM sale_payments').get().total;
   const expensesOut = db.prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM expenses').get().total;
   const summary = {
     total_in: manualIn + salesIn,
