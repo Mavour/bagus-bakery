@@ -46,6 +46,7 @@ function normalizeSaleDate(value) {
 
 function validateSale(body) {
   const buyerName = String(body.buyer_name || '').trim();
+  const category = body.category === 'ORDER' ? 'ORDER' : 'PENJUALAN';
   const status = body.status === 'paid' ? 'paid' : 'unpaid';
   const items = normalizeItems(body.items);
   const createdAt = normalizeSaleDate(body.created_at);
@@ -53,6 +54,7 @@ function validateSale(body) {
   if (!buyerName) throw Object.assign(new Error('Nama pembeli wajib diisi'), { status: 400 });
   return {
     buyer_name: buyerName,
+    category,
     items,
     total_amount: totalAmount,
     status,
@@ -76,12 +78,13 @@ router.post('/', (req, res, next) => {
     const sale = validateSale(req.body);
     const createSale = db.transaction(() => {
       const info = db.prepare(`
-        INSERT INTO sales (buyer_name, items, total_amount, status, notes, paid_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO sales (buyer_name, items, total_amount, category, status, notes, paid_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         sale.buyer_name,
         JSON.stringify(sale.items),
         sale.total_amount,
+        sale.category,
         sale.status,
         sale.notes || null,
         sale.paid_at,
@@ -125,12 +128,13 @@ router.put('/:id', (req, res, next) => {
         : null;
       db.prepare(`
         UPDATE sales
-        SET buyer_name = ?, items = ?, total_amount = ?, status = ?, notes = ?, paid_at = ?, created_at = ?
+        SET buyer_name = ?, items = ?, total_amount = ?, category = ?, status = ?, notes = ?, paid_at = ?, created_at = ?
         WHERE id = ?
       `).run(
         sale.buyer_name,
         JSON.stringify(sale.items),
         sale.total_amount,
+        sale.category,
         finalStatus,
         sale.notes || null,
         paidAt,

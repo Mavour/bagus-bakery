@@ -308,6 +308,7 @@ function saleItem(sale) {
           <p class="item-meta">${formatDate(sale.created_at)}</p>
         </div>
         <div>
+          <span class="badge">${escapeHtml(sale.category || 'PENJUALAN')}</span>
           <span class="badge ${status.badge}">${status.label}</span>
           <p class="item-meta" style="text-align:right">${formatCurrency(sale.total_amount)}</p>
           ${paidAmount(sale) > 0 && remainingAmount(sale) > 0
@@ -668,6 +669,7 @@ function exportInvoice(sale) {
           <div class="info-box">
             <h2>Detail Invoice</h2>
             <div class="detail-row"><span>Nomor</span><strong>${escapeHtml(number)}</strong></div>
+            <div class="detail-row"><span>Kategori</span><strong>${escapeHtml(sale.category || 'PENJUALAN')}</strong></div>
             <div class="detail-row"><span>Tanggal</span><strong>${formatDate(sale.created_at)}</strong></div>
             <div class="detail-row"><span>Status</span><strong><span class="status ${statusClass}">${statusLabel}</span></strong></div>
             <div class="detail-row"><span>Dibuat</span><strong>${escapeHtml(generatedAt)}</strong></div>
@@ -740,6 +742,13 @@ function showSaleModal(sale) {
       <div class="field">
         <label for="sale-date">Tanggal transaksi</label>
         <input id="sale-date" type="date" required value="${toDateInputValue(sale?.created_at)}">
+      </div>
+      <div class="field">
+        <label for="sale-category">Kategori penjualan</label>
+        <select id="sale-category" name="category">
+          <option value="PENJUALAN" ${sale?.category !== 'ORDER' ? 'selected' : ''}>PENJUALAN</option>
+          <option value="ORDER" ${sale?.category === 'ORDER' ? 'selected' : ''}>ORDER</option>
+        </select>
       </div>
       <div id="sale-items" class="form-grid"></div>
       <button class="btn secondary" type="button" id="add-sale-item">+ Tambah Produk</button>
@@ -827,6 +836,7 @@ function showSaleModal(sale) {
         body: JSON.stringify({
           buyer_name: document.getElementById('buyer-name').value,
           created_at: document.getElementById('sale-date').value,
+          category: document.getElementById('sale-category').value,
           items: readItems(),
           status: document.getElementById('sale-status').value,
           notes: document.getElementById('sale-notes').value
@@ -2121,7 +2131,7 @@ function exportReport(report, year, month) {
           ['Tanggal', 'Pembeli', 'Status', 'Total'],
           transactions.map((sale) => [
             formatDate(sale.created_at),
-            sale.buyer_name,
+            `${sale.buyer_name} (${sale.category || 'PENJUALAN'})`,
             paymentStatus(sale).label,
             formatCurrency(sale.total_amount)
           ]),

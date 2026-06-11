@@ -27,6 +27,7 @@ function initDatabase() {
       buyer_name TEXT NOT NULL,
       items TEXT NOT NULL,
       total_amount INTEGER NOT NULL,
+      category TEXT NOT NULL DEFAULT 'PENJUALAN',
       status TEXT DEFAULT 'unpaid',
       notes TEXT,
       paid_at DATETIME,
@@ -84,6 +85,11 @@ function initDatabase() {
       value TEXT NOT NULL
     );
   `);
+
+  const saleColumns = db.prepare('PRAGMA table_info(sales)').all();
+  if (!saleColumns.some((column) => column.name === 'category')) {
+    db.exec("ALTER TABLE sales ADD COLUMN category TEXT NOT NULL DEFAULT 'PENJUALAN'");
+  }
 
   db.exec(`
     INSERT INTO sale_payments (sale_id, amount, paid_at)
