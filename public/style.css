@@ -195,6 +195,18 @@ a {
   line-height: 1.25;
 }
 
+.section-count {
+  display: inline-grid;
+  min-width: 25px;
+  min-height: 25px;
+  margin-left: 5px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-primary-pale);
+  color: var(--color-primary);
+  font-size: 12px;
+}
+
 .grid {
   display: grid;
   gap: 12px;
@@ -463,12 +475,34 @@ a {
 
 .item-editor,
 .ingredient-row {
+  position: relative;
   display: grid;
   gap: 8px;
   padding: 12px;
   border: 1px dashed var(--color-border);
   border-radius: 14px;
   background: #FFFDF9;
+}
+
+.item-editor {
+  padding-top: 58px;
+}
+
+.remove-item-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(217, 64, 64, 0.28);
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: #FFF7F7;
+  color: var(--color-danger);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .summary-box {
@@ -792,6 +826,23 @@ tr:last-child td {
     align-items: end;
   }
 
+  .item-editor {
+    padding-top: 12px;
+  }
+
+  .remove-item-button {
+    position: static;
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    padding: 0;
+    font-size: 15px;
+  }
+
+  .remove-item-button span:last-child {
+    display: none;
+  }
+
   .modal-backdrop {
     align-items: center;
   }
@@ -820,6 +871,18 @@ tr:last-child td {
   .action-group,
   .action-group .btn {
     flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .debt-page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .debt-page-header .segmented {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 

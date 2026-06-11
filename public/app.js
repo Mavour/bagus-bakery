@@ -794,7 +794,10 @@ function showSaleModal(sale) {
         <label>Harga/kotak</label>
         <input class="sale-price" type="number" min="0" value="${price ?? product?.price_per_box ?? 0}" required>
       </div>
-      <button class="icon-button remove-row" type="button" aria-label="Hapus">x</button>
+      <button class="remove-item-button remove-row" type="button" aria-label="Hapus produk">
+        <span aria-hidden="true">x</span>
+        <span>Hapus produk</span>
+      </button>
     `;
     list.appendChild(row);
     row.querySelector('.sale-product').addEventListener('change', (event) => {
@@ -864,32 +867,41 @@ function renderDebts() {
   let filter = 'all';
   draw();
 
-  function filteredUnpaid() {
+  function matchesDateFilter(sale) {
     const now = new Date();
-    return state.sales.filter((sale) => {
-      if (sale.status !== 'unpaid') return false;
-      if (filter === 'week') return daysBetween(sale.created_at) <= 7;
-      if (filter === 'month') return String(sale.created_at).startsWith(monthKey(now));
-      return true;
-    });
+    if (filter === 'week') return daysBetween(sale.created_at) <= 7;
+    if (filter === 'month') return String(sale.created_at).startsWith(monthKey(now));
+    return true;
   }
 
   function draw() {
-    const unpaid = filteredUnpaid();
+    const orders = state.sales.filter((sale) => (
+      sale.status === 'unpaid'
+      && sale.category === 'ORDER'
+      && matchesDateFilter(sale)
+    ));
+    const debts = state.sales.filter((sale) => (
+      sale.status === 'unpaid'
+      && sale.category !== 'ORDER'
+      && matchesDateFilter(sale)
+    ));
     const paid = state.sales.filter((sale) => sale.status === 'paid');
-    const total = unpaid.reduce((sum, sale) => sum + remainingAmount(sale), 0);
+    const outstanding = [...orders, ...debts];
+    const total = outstanding.reduce((sum, sale) => sum + remainingAmount(sale), 0);
     app.innerHTML = `
       <h1 class="page-title">Bon / Tagihan</h1>
-      <p class="page-subtitle">Pantau semua pesanan yang belum dibayar.</p>
+      <p class="page-subtitle">Order, bon pelanggan, dan transaksi lunas dipisahkan agar mudah dipantau.</p>
 
       <div class="grid stats-grid">
         ${statCard('Total piutang', formatCurrency(total), total > 0)}
-        ${statCard('Bon outstanding', `${unpaid.length}`)}
+        ${statCard('Order aktif', `${orders.length}`)}
+        ${statCard('Bon outstanding', `${debts.length}`)}
+        ${statCard('Sudah lunas', `${paid.length}`)}
       </div>
 
       <section class="section">
-        <div class="section-header">
-          <h2>Belum Dibayar</h2>
+        <div class="section-header debt-page-header">
+          <h2>Order <span class="section-count">${orders.length}</span></h2>
           <div class="segmented" id="debt-filter">
             <button type="button" data-filter="all" class="${filter === 'all' ? 'active' : ''}">Semua</button>
             <button type="button" data-filter="week" class="${filter === 'week' ? 'active' : ''}">7 hari</button>
@@ -897,16 +909,25 @@ function renderDebts() {
           </div>
         </div>
         <div class="list">
-          ${unpaid.length ? unpaid.map(debtItem).join('') : emptyState('Tidak ada bon outstanding.')}
+          ${orders.length ? orders.map(debtItem).join('') : emptyState('Tidak ada order aktif pada periode ini.')}
         </div>
       </section>
 
       <section class="section">
         <div class="section-header">
-          <h2>Sudah Lunas</h2>
+          <h2>Bon <span class="section-count">${debts.length}</span></h2>
         </div>
         <div class="list">
-          ${paid.length ? paid.map(saleItem).join('') : emptyState('Belum ada bon lunas.')}
+          ${debts.length ? debts.map(debtItem).join('') : emptyState('Tidak ada bon outstanding pada periode ini.')}
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2>Sudah Lunas <span class="section-count">${paid.length}</span></h2>
+        </div>
+        <div class="list">
+          ${paid.length ? paid.map(saleItem).join('') : emptyState('Belum ada transaksi lunas.')}
         </div>
       </section>
     `;
