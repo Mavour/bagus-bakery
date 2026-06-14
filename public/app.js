@@ -309,12 +309,14 @@ function saleItem(sale) {
           <p class="item-meta">${itemSummary(sale.items)}</p>
           <p class="item-meta">${formatDate(sale.created_at)}</p>
         </div>
-        <div>
-          <span class="badge">${escapeHtml(sale.category || 'PENJUALAN')}</span>
-          <span class="badge ${status.badge}">${status.label}</span>
-          <p class="item-meta" style="text-align:right">${formatCurrency(sale.total_amount)}</p>
+        <div class="sale-summary">
+          <div class="status-badges">
+            <span class="badge">${escapeHtml(sale.category || 'PENJUALAN')}</span>
+            <span class="badge ${status.badge}">${status.label}</span>
+          </div>
+          <p class="item-meta">${formatCurrency(sale.total_amount)}</p>
           ${paidAmount(sale) > 0 && remainingAmount(sale) > 0
-            ? `<p class="item-meta" style="text-align:right">Sisa ${formatCurrency(remainingAmount(sale))}</p>`
+            ? `<p class="item-meta">Sisa ${formatCurrency(remainingAmount(sale))}</p>`
             : ''}
         </div>
       </div>

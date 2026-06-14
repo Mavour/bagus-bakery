@@ -356,6 +356,27 @@ a {
   gap: 12px;
 }
 
+.list-row > :first-child {
+  min-width: 0;
+}
+
+.sale-summary {
+  flex: 0 0 auto;
+  min-width: 124px;
+  text-align: right;
+}
+
+.status-badges {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.sale-summary .item-meta {
+  text-align: right;
+}
+
 .item-title {
   margin: 0;
   font-weight: 800;
@@ -682,6 +703,65 @@ th {
 
 tr:last-child td {
   border-bottom: 0;
+}
+
+@media (max-width: 767px) {
+  #product-list {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  #product-list table {
+    min-width: 0;
+  }
+
+  #product-list thead {
+    display: none;
+  }
+
+  #product-list tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  #product-list tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  #product-list td {
+    padding: 0;
+    border: 0;
+  }
+
+  #product-list td:first-child {
+    grid-column: 1 / -1;
+    font-weight: 800;
+  }
+
+  #product-list td:nth-child(2) {
+    align-self: center;
+    color: var(--color-text-muted);
+  }
+
+  #product-list td:nth-child(3) {
+    justify-self: end;
+  }
+
+  #product-list .button-row {
+    justify-content: flex-end;
+  }
+
+  #product-list .btn {
+    min-height: 38px;
+    padding: 8px 10px;
+  }
 }
 
 .empty-state {
