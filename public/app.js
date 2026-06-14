@@ -1848,7 +1848,7 @@ async function renderReports() {
       <button class="btn" type="button" id="export-report">Cetak / Simpan PDF</button>
     </div>
 
-    <div class="grid stats-grid">
+    <div class="grid stats-grid report-stats">
       ${statCard('Total pemasukan', formatCurrency(report.total_revenue))}
       ${statCard('Persediaan masuk', formatCurrency(report.total_expenses), report.total_expenses > 0)}
       ${statCard('Total transaksi', `${report.total_transactions}`)}
@@ -1866,16 +1866,16 @@ async function renderReports() {
         <h2>Breakdown Produk</h2>
         ${bestProduct ? `<span class="badge">Terlaris: ${escapeHtml(bestProduct.product_name)}</span>` : ''}
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap report-table report-product-table">
         <table>
           <thead><tr><th>Produk</th><th>Kotak</th><th>Pendapatan</th><th>%</th></tr></thead>
           <tbody>
             ${report.revenue_by_product.length ? report.revenue_by_product.map((item) => `
               <tr>
-                <td>${escapeHtml(item.product_name)}</td>
-                <td>${item.boxes}</td>
-                <td>${formatCurrency(item.revenue)}</td>
-                <td>${item.percentage}%</td>
+                <td data-label="Produk">${escapeHtml(item.product_name)}</td>
+                <td data-label="Kotak">${item.boxes}</td>
+                <td data-label="Pendapatan">${formatCurrency(item.revenue)}</td>
+                <td data-label="Kontribusi">${item.percentage}%</td>
               </tr>
             `).join('') : '<tr><td colspan="4">Belum ada transaksi bulan ini.</td></tr>'}
           </tbody>
@@ -1885,15 +1885,15 @@ async function renderReports() {
 
     <section class="section">
       <div class="section-header"><h2>Breakdown Persediaan Masuk</h2></div>
-      <div class="table-wrap">
+      <div class="table-wrap report-table report-expense-table">
         <table>
           <thead><tr><th>Kategori</th><th>Catatan</th><th>Total</th></tr></thead>
           <tbody>
             ${report.expenses_by_category.length ? report.expenses_by_category.map((item) => `
               <tr>
-                <td>${escapeHtml(item.category)}</td>
-                <td>${item.count}</td>
-                <td>${formatCurrency(item.amount)}</td>
+                <td data-label="Kategori">${escapeHtml(item.category)}</td>
+                <td data-label="Catatan">${item.count}</td>
+                <td data-label="Total">${formatCurrency(item.amount)}</td>
               </tr>
             `).join('') : '<tr><td colspan="3">Belum ada persediaan masuk bulan ini.</td></tr>'}
           </tbody>
