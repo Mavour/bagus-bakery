@@ -265,13 +265,15 @@ function renderDashboard() {
       <div class="section-header">
         <h2>Transaksi Terbaru</h2>
       </div>
-      <div class="list">
+      ${searchControl('dashboard-search', 'Cari transaksi terbaru')}
+      <div class="list" id="dashboard-sales">
         ${recentSales.length ? recentSales.map(saleItem).join('') : emptyState('Belum ada transaksi.')}
       </div>
     </section>
   `;
 
   app.querySelector('[data-action="new-sale"]').addEventListener('click', () => showSaleModal());
+  setupSearch('dashboard-search', 'dashboard-sales', '.list-item');
   attachSaleActions();
   const week = weeklyRevenue();
   createChart('weekly', 'weekly-chart', {
@@ -723,6 +725,51 @@ function emptyState(message) {
   return `<div class="empty-state">${escapeHtml(message)}</div>`;
 }
 
+function searchControl(id, placeholder, value = '') {
+  return `
+    <div class="search-box">
+      <input
+        id="${id}"
+        type="search"
+        placeholder="${escapeHtml(placeholder)}"
+        aria-label="${escapeHtml(placeholder)}"
+        value="${escapeHtml(value)}"
+      >
+    </div>
+  `;
+}
+
+function setupSearch(inputId, containerId, itemSelector, onQueryChange) {
+  const input = document.getElementById(inputId);
+  const container = document.getElementById(containerId);
+  if (!input || !container) return;
+
+  const noResults = document.createElement('div');
+  noResults.className = 'empty-state search-empty';
+  noResults.textContent = 'Data tidak ditemukan.';
+  noResults.hidden = true;
+  container.appendChild(noResults);
+  const emptyStates = container.querySelectorAll('.empty-state:not(.search-empty)');
+
+  const filterItems = () => {
+    const query = input.value.trim().toLocaleLowerCase('id-ID');
+    let visible = 0;
+    container.querySelectorAll(itemSelector).forEach((item) => {
+      const matches = !query || item.textContent.toLocaleLowerCase('id-ID').includes(query);
+      item.hidden = !matches;
+      if (matches) visible += 1;
+    });
+    emptyStates.forEach((empty) => {
+      empty.hidden = Boolean(query);
+    });
+    noResults.hidden = !query || visible > 0;
+    if (onQueryChange) onQueryChange(input.value);
+  };
+
+  input.addEventListener('input', filterItems);
+  filterItems();
+}
+
 function productOptions(selected = '') {
   return state.products.map((product) => `
     <option value="${product.id}" ${String(product.id) === String(selected) ? 'selected' : ''}>
@@ -866,6 +913,7 @@ function showSaleModal(sale) {
 
 function renderDebts() {
   let filter = 'all';
+  let searchQuery = '';
   draw();
 
   function matchesDateFilter(sale) {
@@ -900,6 +948,11 @@ function renderDebts() {
         ${statCard('Sudah lunas', `${paid.length}`)}
       </div>
 
+      <div class="section">
+        ${searchControl('debt-search', 'Cari nama pelanggan, produk, status, atau nominal', searchQuery)}
+      </div>
+
+      <div id="debt-search-results">
       <section class="section">
         <div class="section-header debt-page-header">
           <h2>Order <span class="section-count">${orders.length}</span></h2>
@@ -931,7 +984,11 @@ function renderDebts() {
           ${paid.length ? paid.map(saleItem).join('') : emptyState('Belum ada transaksi lunas.')}
         </div>
       </section>
+      </div>
     `;
+    setupSearch('debt-search', 'debt-search-results', '.list-item', (value) => {
+      searchQuery = value;
+    });
     app.querySelectorAll('#debt-filter button').forEach((button) => {
       button.addEventListener('click', () => {
         filter = button.dataset.filter;
@@ -1017,13 +1074,15 @@ function renderExpenses() {
 
     <section class="section">
       <div class="section-header"><h2>Riwayat Belanja</h2></div>
-      <div class="list">
+      ${searchControl('expense-search', 'Cari nama barang, kategori, toko, atau catatan')}
+      <div class="list" id="expense-list">
         ${state.expenses.length ? state.expenses.map(expenseItem).join('') : emptyState('Belum ada catatan belanja.')}
       </div>
     </section>
   `;
 
   app.querySelector('[data-action="new-expense"]').addEventListener('click', () => showExpenseModal());
+  setupSearch('expense-search', 'expense-list', '.list-item');
   app.querySelectorAll('[data-edit-expense]').forEach((button) => button.addEventListener('click', () => {
     showExpenseModal(state.expenses.find((expense) => String(expense.id) === button.dataset.editExpense));
   }));
@@ -1236,7 +1295,8 @@ function renderCash() {
 
     <section class="section">
       <div class="section-header"><h2>Riwayat Kas</h2></div>
-      <div class="list">
+      ${searchControl('cash-search', 'Cari keterangan, kategori, sumber, atau nominal')}
+      <div class="list" id="cash-list">
         ${state.cash.entries.length ? state.cash.entries.map(cashItem).join('') : emptyState('Belum ada catatan kas.')}
       </div>
     </section>
@@ -1257,6 +1317,7 @@ function renderCash() {
     category: 'adjustment',
     description: 'Koreksi kas'
   }));
+  setupSearch('cash-search', 'cash-list', '.list-item');
   app.querySelectorAll('[data-edit-cash]').forEach((button) => button.addEventListener('click', () => {
     showCashModal(state.cash.entries.find((entry) => String(entry.raw_id) === button.dataset.editCash && entry.source === 'cash'));
   }));
@@ -1384,7 +1445,8 @@ function renderCalculator() {
         <h2>Produk & Harga</h2>
         <button class="btn" type="button" data-action="new-product">+ Tambah Produk</button>
       </div>
-      <div class="table-wrap">
+      ${searchControl('product-search', 'Cari produk atau harga')}
+      <div class="table-wrap" id="product-list">
         <table>
           <thead><tr><th>Produk</th><th>Harga/kotak</th><th>Aksi</th></tr></thead>
           <tbody>
@@ -1439,13 +1501,16 @@ function renderCalculator() {
       <div class="section-header">
         <h2>Riwayat Kalkulasi</h2>
       </div>
-      <div class="list">
+      ${searchControl('calculation-search', 'Cari produk, tanggal, margin, atau keuntungan')}
+      <div class="list" id="calculation-list">
         ${state.calculations.length ? state.calculations.map(calcItem).join('') : emptyState('Belum ada kalkulasi tersimpan.')}
       </div>
     </section>
   `;
 
   app.querySelector('[data-action="new-product"]').addEventListener('click', () => showProductModal());
+  setupSearch('product-search', 'product-list', 'tbody tr');
+  setupSearch('calculation-search', 'calculation-list', '.list-item');
   app.querySelectorAll('[data-edit-product]').forEach((button) => button.addEventListener('click', () => {
     showProductModal(state.products.find((item) => String(item.id) === button.dataset.editProduct));
   }));
@@ -1846,7 +1911,10 @@ async function renderReports() {
 
     <details class="section card panel">
       <summary class="compact-title">Daftar transaksi bulan ini</summary>
-      <div class="list" style="margin-top:14px">
+      <div style="margin-top:14px">
+        ${searchControl('report-transaction-search', 'Cari transaksi bulan ini')}
+      </div>
+      <div class="list" id="report-transaction-list">
         ${state.sales.filter((sale) => String(sale.created_at).startsWith(`${year}-${String(month).padStart(2, '0')}`)).map(saleItem).join('') || emptyState('Tidak ada transaksi.')}
       </div>
     </details>
@@ -1858,6 +1926,7 @@ async function renderReports() {
     route();
   }));
   document.getElementById('export-report').addEventListener('click', () => exportReport(report, year, month));
+  setupSearch('report-transaction-search', 'report-transaction-list', '.list-item');
   attachSaleActions();
   createChart('monthly', 'monthly-chart', {
     type: 'line',
