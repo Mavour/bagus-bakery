@@ -1848,7 +1848,7 @@ async function renderReports() {
       <button class="btn" type="button" id="export-report">Cetak / Simpan PDF</button>
     </div>
 
-    <div class="grid stats-grid report-stats">
+    <div class="grid stats-grid">
       ${statCard('Total pemasukan', formatCurrency(report.total_revenue))}
       ${statCard('Persediaan masuk', formatCurrency(report.total_expenses), report.total_expenses > 0)}
       ${statCard('Total transaksi', `${report.total_transactions}`)}

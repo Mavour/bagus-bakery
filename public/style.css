@@ -310,7 +310,8 @@ a {
   font-size: 24px;
   font-weight: 800;
   line-height: 1.12;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .stat-card.warning .stat-value {
@@ -706,18 +707,17 @@ tr:last-child td {
 }
 
 @media (max-width: 767px) {
-  .report-stats .stat-card {
+  .stats-grid .stat-card {
     min-height: 112px;
     padding: 15px;
   }
 
-  .report-stats .stat-label {
+  .stats-grid .stat-label {
     font-size: 10px;
   }
 
-  .report-stats .stat-value {
+  .stats-grid .stat-value {
     font-size: clamp(18px, 5.4vw, 22px);
-    overflow-wrap: normal;
     white-space: nowrap;
   }
 
@@ -1064,15 +1064,15 @@ tr:last-child td {
 }
 
 @media (max-width: 380px) {
-  .report-stats {
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 
-  .report-stats .stat-card {
+  .stats-grid .stat-card {
     min-height: 100px;
   }
 
-  .report-stats .stat-value {
+  .stats-grid .stat-value {
     font-size: 22px;
   }
 
