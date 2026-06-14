@@ -807,6 +807,7 @@ function showSaleModal(sale) {
     });
     row.querySelectorAll('input, select').forEach((field) => field.addEventListener('input', updateTotal));
     row.querySelector('.remove-row').addEventListener('click', () => {
+      if (!window.confirm('Hapus produk ini dari transaksi?')) return;
       row.remove();
       if (!list.children.length) addRow();
       updateTotal();
@@ -1502,6 +1503,7 @@ function setupCalculatorForm() {
     ingredientList.appendChild(row);
     row.querySelectorAll('input').forEach((input) => input.addEventListener('input', updateResult));
     row.querySelector('.remove-ingredient').addEventListener('click', () => {
+      if (!window.confirm('Hapus bahan ini dari kalkulasi?')) return;
       row.remove();
       if (!ingredientList.children.length) addIngredient();
       updateResult();
@@ -1662,6 +1664,7 @@ function showCalculationModal(calc) {
     ingredientList.appendChild(row);
     row.querySelectorAll('input').forEach((input) => input.addEventListener('input', updateResult));
     row.querySelector('.remove-ingredient').addEventListener('click', () => {
+      if (!window.confirm('Hapus bahan ini dari kalkulasi?')) return;
       row.remove();
       if (!ingredientList.children.length) addIngredient();
       updateResult();
